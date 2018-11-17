@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>CPU実験2018-1班3rd仕様</title>
+	<meta charset="UTF-8">
+</head>
+<body>
+	<h1>3rdアーキテクチャの仕様</h1>
+	<h2>仕様</h2>
+	<p>
+		データ長：32bit<br>
+		命令語長：32bit<br>
+		命令メモリ：2**14words<br>
+		データメモリ：2**17words<br>	
+		FTABLE:2**7word<br>
+		<br>
+		2wayスーパースカラ<br>
+		スコアボードをもとにしたアウトオブオーダー<br>
+		2bit分岐予測器<br>
+	</p>
+	<h2>命令セット</h2>
+	<p>
+		<table border="1">
+			<tr>
+				<th>命令</th>
+				<th>動作</th>
+				<th colspan="5">ビット列</th>
+			</tr>
+			<tr>
+				<td colspan="2">算術演算</td>
+				<td>31-26</td>
+				<td>25-21</td>
+				<td>20-16</td>
+				<td>15-11</td>
+				<td>10-0</td>
+			</tr>
+			<tr>
+				<td>LUI</td>
+				<td>rd &lt;= imm[15:0] || rs[15:0]</td>
+				<td>110000</td>
+				<td>rd</td>
+				<td>rs</td>
+				<td colspan="2">imm</td>
+			</tr>
+			<tr>
+				<td>ADD</td>
+				<td>rd &lt;= $signed(rs) + $signed(rt)</td>
+				<td>001100</td>
+				<td>rd</td>
+				<td>rs</td>
+				<td>rt</td>
+				<td>0</td>
+			</tr>
+			<tr>
+				<td>ADDI</td>
+				<td>rd &lt;= $signed(rs) + $signed(imm)</td>
+				<td>001000</td>
+				<td>rd</td>
+				<td>rs</td>
+				<td colspan="2">imm</td>
+			</tr>
+			<tr>
+				<td>SUB</td>
+				<td>rd &lt;= $signed(rs) - $signed(rt)</td>
+				<td>010100</td>
+				<td>rd</td>
+				<td>rs</td>
+				<td>rt</td>
+				<td>0</td>
+			</tr>
+			<tr>
+				<td>SLL</td>
+				<td>rd &lt;= rs &lt;&lt; rt[4:0]</td>
+				<td>011100</td>
+				<td>rd</td>
+				<td>rs</td>
+				<td>rt</td>
+				<td>0</td>
+			</tr>
+			<tr>
+				<td>SLLI</td>
+				<td>rd &lt;= rs &lt;&lt; imm[4:0]</td>
+				<td>011000</td>
+				<td>rd</td>
+				<td>rs</td>
+				<td colspan="2">imm</td>
+			</tr>
+			<tr>
+				<td>SRL</td>
+				<td>rd &lt;= rs &gt;&gt; rt[4:0]</td>
+				<td>100100</td>
+				<td>rd</td>
+				<td>rs</td>
+				<td>rt</td>
+				<td>0</td>
+			</tr>
+			<tr>
+				<td>SRLI</td>
+				<td>rd &lt;= rs &gt;&gt; imm[4:0]</td>
+				<td>100000</td>
+				<td>rd</td>
+				<td>rs</td>
+				<td colspan="2">imm</td>
+			</tr>
+			<tr>
+				<td>SRA</td>
+				<td>rd &lt;= rs &gt;&gt;&gt; rt[4:0]</td>
+				<td>101100</td>
+				<td>rd</td>
+				<td>rs</td>
+				<td>rt</td>
+				<td>0</td>
+			</tr>
+			<tr>
+				<td>SRAI</td>
+				<td>rd &lt;= rs &gt;&gt;&gt; imm[4:0]</td>
+				<td>101000</td>
+				<td>rd</td>
+				<td>rs</td>
+				<td colspan="2">imm</td>
+			</tr>
+			<tr></tr>
+			<tr></tr>
+			<tr></tr>
+			<tr>
+				<td colspan="2">ジャンプ/分岐</td>
+				<td>31-26</td>
+				<td>25-21</td>
+				<td>20-16</td>
+				<td>15-11</td>
+				<td>10-0</td>
+			</tr>
+			<tr>
+				<td>J</td>
+				<td>pc &lt;= imm</td>
+				<td>000010</td>
+				<td colspan="2">0</td>
+				<td colspan="2">imm</td>
+			</tr>
+			<tr>
+				<td>JAL</td>
+				<td>r31 &lt;= pc + 1;pc &lt;= imm</td>
+				<td>000110</td>
+				<td colspan="2">0</td>
+				<td colspan="2">imm</td>
+			</tr>
+			<tr>
+				<td>JR</td>
+				<td>pc &lt;= rs</td>
+				<td>001010</td>
+				<td>0</td>
+				<td>rs</td>
+				<td colspan="2">0</td>
+			</tr>
+			<tr>
+				<td>JALR</td>
+				<td>r31 &lt;= pc + 1;pc &lt;= rs</td>
+				<td>001110</td>
+				<td>0</td>
+				<td>rs</td>
+				<td colspan="2">0</td>
+			</tr>
+			<tr>
+				<td>BEQ</td>
+				<td>if $signed(rs) == $signed(rt) then pc &lt;= imm</td>
+				<td>010010</td>
+				<td>imm1</td>
+				<td>rs</td>
+				<td>rt</td>
+				<td>imm2</td>
+			</tr>
+			<tr>
+				<td>BLE</td>
+				<td>if $signed(rs) &lt;= $signed(rt) then pc &lt;= imm</td>
+				<td>011010</td>
+				<td>imm1</td>
+				<td>rs</td>
+				<td>rt</td>
+				<td>imm2</td>
+			</tr>
+			<tr>
+				<td>BEQI</td>
+				<td>if $signed(rs) == $signed(opr) then pc &lt;= imm</td>
+				<td>110010</td>
+				<td>opr</td>
+				<td>rs</td>
+				<td colspan="2">imm</td>
+			</tr>
+			<tr>
+				<td>BNEI</td>
+				<td>if $signed(rs) != $signed(opr) then pc &lt;= imm</td>
+				<td>111010</td>
+				<td>opr</td>
+				<td>rs</td>
+				<td colspan="2">imm</td>
+			</tr>
+			<tr>
+				<td>BLEI</td>
+				<td>if $signed(rs) &lt;= $signed(opr) then pc &lt;= imm</td>
+				<td>100010</td>
+				<td>opr</td>
+				<td>rs</td>
+				<td colspan="2">imm</td>
+			</tr>
+			<tr>
+				<td>BGEI</td>
+				<td>if $signed(rs) &gt;= $signed(opr) then pc &lt;= imm</td>
+				<td>101010</td>
+				<td>opr</td>
+				<td>rs</td>
+				<td colspan="2">imm</td>
+			</tr>
+			<tr></tr>
+			<tr></tr>
+			<tr></tr>
+			<tr>
+				<td colspan="2">メモリ操作</td>
+				<td>31-26</td>
+				<td>25-21</td>
+				<td>20-16</td>
+				<td>15-11</td>
+				<td>10-0</td>
+			</tr>
+			<tr>
+				<td>LW</td>
+				<td>rd &lt;= MEM[$signed(rs)+$signed(imm)]</td>
+				<td>001111</td>
+				<td>rd</td>
+				<td>rs</td>
+				<td colspan="2">imm</td>
+			</tr>
+			<tr>
+				<td>SW</td>
+				<td>MEM[$signed(rs)+$signed(imm)] &lt;= rt</td>
+				<td>000111</td>
+				<td>imm1</td>
+				<td>rs</td>
+				<td>rt</td>
+				<td>imm2</td>
+			</tr>
+			<tr></tr>
+			<tr></tr>
+			<tr></tr>
+			<tr>
+				<td colspan="2">I/O</td>
+				<td>31-26</td>
+				<td>25-21</td>
+				<td>20-16</td>
+				<td>15-11</td>
+				<td>10-0</td>
+			</tr>
+			<tr>
+				<td>OUT</td>
+				<td>IO &lt;= rs[7:0]</td>
+				<td>000011</td>
+				<td>0</td>
+				<td>rs</td>
+				<td colspan="2">0</td>
+			</tr>
+			<tr>
+				<td>IN</td>
+				<td>rd &lt;= 24'b0 || IO[7:0]</td>
+				<td>001011</td>
+				<td>rd</td>
+				<td colspan="3">0</td>
+			</tr>
+			<tr></tr>
+			<tr></tr>
+			<tr></tr>
+			<tr>
+				<td colspan="2">浮動小数点数演算</td>
+				<td>31-26</td>
+				<td>25-21</td>
+				<td>20-16</td>
+				<td>15-11</td>
+				<td>10-0</td>
+			</tr>
+			<tr>
+				<td>FADD</td>
+				<td>fd &lt;= fs +. ft</td>
+				<td>001001</td>
+				<td>fd</td>
+				<td>fs</td>
+				<td>ft</td>
+				<td>00000000001</td>
+			</tr>
+			<tr>
+				<td>FSUB</td>
+				<td>fd &lt;= fs -. ft</td>
+				<td>001001</td>
+				<td>fd</td>
+				<td>fs</td>
+				<td>ft</td>
+				<td>00000001001</td>
+			</tr>
+			<tr>
+				<td>FMUL</td>
+				<td>fd &lt;= fs *. ft</td>
+				<td>010001</td>
+				<td>fd</td>
+				<td>fs</td>
+				<td>ft</td>
+				<td>00000000001</td>
+			</tr>
+			<tr>
+				<td>FDIV</td>
+				<td>fd &lt;= fs /. ft</td>
+				<td>011001</td>
+				<td>fd</td>
+				<td>fs</td>
+				<td>ft</td>
+				<td>00000000001</td>
+			</tr>
+			<tr>
+				<td>FSQRT</td>
+				<td>fd &lt;= sqrt(fs)</td>
+				<td>011001</td>
+				<td>fd</td>
+				<td>fs</td>
+				<td>0</td>
+				<td>00000001000</td>
+			</tr>
+			<tr>
+				<td>FEQ</td>
+				<td>rd &lt;= fs == ft ? 32'b1 : 32'b0</td>
+				<td>100001</td>
+				<td>rd</td>
+				<td>fs</td>
+				<td>ft</td>
+				<td>00000000101</td>
+			</tr>
+			<tr>
+				<td>FLT</td>
+				<td>rd &lt;= fs &lt; ft ? 32'b1 : 32'b0</td>
+				<td>100001</td>
+				<td>rd</td>
+				<td>fs</td>
+				<td>ft</td>
+				<td>00000001101</td>
+			</tr>
+			<tr>
+				<td>FLE</td>
+				<td>rd &lt;= fs &lt;= ft ? 32'b1 : 32'b0</td>
+				<td>100001</td>
+				<td>rd</td>
+				<td>fs</td>
+				<td>ft</td>
+				<td>00000010101</td>
+			</tr>
+			<tr>
+				<td>FTOI</td>
+				<td>rd &lt;= (int)fs</td>
+				<td>100001</td>
+				<td>rd</td>
+				<td>fs</td>
+				<td>0</td>
+				<td>00000100100</td>
+			</tr>
+			<tr>
+				<td>ITOF</td>
+				<td>fd &lt;= (float)rs</td>
+				<td>100001</td>
+				<td>fd</td>
+				<td>rs</td>
+				<td>0</td>
+				<td>00000101010</td>
+			</tr>
+			<tr>
+				<td>FLUP</td>
+				<td>fd &lt;= FTABLE[imm[6:0]]</td>
+				<td>000101</td>
+				<td>fd</td>
+				<td>0</td>
+				<td colspan="2">imm</td>
+			</tr>
+			<tr>
+				<td>FNEG</td>
+				<td>fd &lt;= -fs</td>
+				<td>000001</td>
+				<td>fd</td>
+				<td>fs</td>
+				<td>0</td>
+				<td>00000000000</td>
+			</tr>
+			<tr>
+				<td>FMVFR</td>
+				<td>fd &lt;= rs</td>
+				<td>000001</td>
+				<td>fd</td>
+				<td>rs</td>
+				<td>0</td>
+				<td>00000001010</td>
+			</tr>
+			<tr>
+				<td>FMVTR</td>
+				<td>rd &lt;= fs</td>
+				<td>000001</td>
+				<td>rd</td>
+				<td>fs</td>
+				<td>0</td>
+				<td>00000010100</td>
+			</tr>
+		</table>
+		※メモリアクセスはword単位<br>
+	</p>
+</body>
+</html>
