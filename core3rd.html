@@ -294,92 +294,92 @@
 			<tr>
 				<td>FADD</td>
 				<td>fd &lt;= fs +. ft</td>
-				<td>001001</td>
-				<td>fd</td>
-				<td>fs</td>
-				<td>ft</td>
-				<td>00000000001</td>
-			</tr>
-			<tr>
-				<td>FSUB</td>
-				<td>fd &lt;= fs -. ft</td>
-				<td>001001</td>
+				<td>000001</td>
 				<td>fd</td>
 				<td>fs</td>
 				<td>ft</td>
 				<td>00000001001</td>
 			</tr>
 			<tr>
-				<td>FMUL</td>
-				<td>fd &lt;= fs *. ft</td>
-				<td>010001</td>
+				<td>FSUB</td>
+				<td>fd &lt;= fs -. ft</td>
+				<td>000001</td>
 				<td>fd</td>
 				<td>fs</td>
 				<td>ft</td>
-				<td>00000000001</td>
+				<td>00000010001</td>
+			</tr>
+			<tr>
+				<td>FMUL</td>
+				<td>fd &lt;= fs *. ft</td>
+				<td>000001</td>
+				<td>fd</td>
+				<td>fs</td>
+				<td>ft</td>
+				<td>00000011001</td>
 			</tr>
 			<tr>
 				<td>FDIV</td>
 				<td>fd &lt;= fs /. ft</td>
-				<td>011001</td>
+				<td>000001</td>
 				<td>fd</td>
 				<td>fs</td>
 				<td>ft</td>
-				<td>00000000001</td>
+				<td>00000100001</td>
 			</tr>
 			<tr>
 				<td>FSQRT</td>
 				<td>fd &lt;= sqrt(fs)</td>
-				<td>011001</td>
+				<td>000001</td>
 				<td>fd</td>
 				<td>fs</td>
 				<td>0</td>
-				<td>00000001000</td>
+				<td>00000101000</td>
 			</tr>
 			<tr>
 				<td>FEQ</td>
 				<td>rd &lt;= fs == ft ? 32'b1 : 32'b0</td>
-				<td>100001</td>
+				<td>000001</td>
 				<td>rd</td>
 				<td>fs</td>
 				<td>ft</td>
-				<td>00000000101</td>
+				<td>00000110101</td>
 			</tr>
 			<tr>
 				<td>FLT</td>
 				<td>rd &lt;= fs &lt; ft ? 32'b1 : 32'b0</td>
-				<td>100001</td>
+				<td>000001</td>
 				<td>rd</td>
 				<td>fs</td>
 				<td>ft</td>
-				<td>00000001101</td>
+				<td>00000111101</td>
 			</tr>
 			<tr>
 				<td>FLE</td>
 				<td>rd &lt;= fs &lt;= ft ? 32'b1 : 32'b0</td>
-				<td>100001</td>
+				<td>000001</td>
 				<td>rd</td>
 				<td>fs</td>
 				<td>ft</td>
-				<td>00000010101</td>
+				<td>00001000101</td>
 			</tr>
 			<tr>
 				<td>FTOI</td>
 				<td>rd &lt;= (int)fs</td>
-				<td>100001</td>
+				<td>000001</td>
 				<td>rd</td>
 				<td>fs</td>
 				<td>0</td>
-				<td>00000100100</td>
+				<td>00001001100</td>
 			</tr>
 			<tr>
 				<td>ITOF</td>
 				<td>fd &lt;= (float)rs</td>
-				<td>100001</td>
+				<td>000001</td>
 				<td>fd</td>
 				<td>rs</td>
 				<td>0</td>
-				<td>00000101010</td>
+				<td>00001010010</td>
 			</tr>
 			<tr>
 				<td>FLUP</td>
@@ -396,7 +396,7 @@
 				<td>fd</td>
 				<td>fs</td>
 				<td>0</td>
-				<td>00000000000</td>
+				<td>00001011000</td>
 			</tr>
 			<tr>
 				<td>FMVFR</td>
@@ -405,7 +405,7 @@
 				<td>fd</td>
 				<td>rs</td>
 				<td>0</td>
-				<td>00000001010</td>
+				<td>00001100010</td>
 			</tr>
 			<tr>
 				<td>FMVTR</td>
@@ -414,7 +414,7 @@
 				<td>rd</td>
 				<td>fs</td>
 				<td>0</td>
-				<td>00000010100</td>
+				<td>00001101100</td>
 			</tr>
 		</table>
 		※メモリアクセスはword単位<br>

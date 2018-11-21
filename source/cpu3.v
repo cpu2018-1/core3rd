@@ -27,16 +27,12 @@ module cpu3(
 	localparam st_begin =  3'b001;
 	localparam st_normal = 3'b010;
 
-	localparam mod_b =    10'b0000000001;
-	localparam mod_io =   10'b0000000010;
-	localparam mod_mem =  10'b0000000100;
-	localparam mod_alu =  10'b0000001000;
-	localparam mod_alu2 = 10'b0000010000;
-	localparam mod_mv =   10'b0000100000;
-	localparam mod_fab =  10'b0001000000;
-	localparam mod_fml =  10'b0010000000;
-	localparam mod_fds =  10'b0100000000;
-	localparam mod_fet =  10'b1000000000;
+	localparam mod_io =   6'b000001;
+	localparam mod_mem =  6'b000010;
+	localparam mod_alu =  6'b000100;
+	localparam mod_alu2 = 6'b001000;
+	localparam mod_fpu =  6'b010000;
+	localparam mod_fpu2 = 6'b100000;
 
 	localparam mask = ~({31'b0,1'b1,31'b0,1'b1});
 
@@ -59,10 +55,10 @@ module cpu3(
 	wire [15:0] de_imm [1:0];
 	wire [4:0] de_opr [1:0];
 	wire [3:0] de_ctrl [1:0];
-	wire [9:0] de_mod [1:0];
-	wire [72:0] de_data [1:0];
+	wire [5:0] de_mod [1:0];
+	wire [68:0] de_data [1:0];
 	//wait
-	reg [72:0] wa_data [3:0];
+	reg [68:0] wa_data [3:0];
 	wire [13:0] wa_pc [3:0];
 	wire [5:0] wa_ope [3:0];
 	wire [5:0] wa_ds [3:0];
@@ -71,7 +67,7 @@ module cpu3(
 	wire [15:0] wa_imm [3:0];
 	wire [4:0] wa_opr [3:0];
 	wire [3:0] wa_ctrl [3:0];
-	wire [9:0] wa_mod [3:0];
+	wire [5:0] wa_mod [3:0];
 	wire [63:0] wa_std_board [3:0];
 	wire wa_is_busy;
 
@@ -129,49 +125,30 @@ module cpu3(
 	assign de_opr[1] = de_instr[1][25:21];
 	assign de_ctrl[0] = de_instr[0][6:3];
 	assign de_ctrl[1] = de_instr[1][6:3];
-	assign de_mod[0] = //////////////
-	assign de_mod[1] = //////////////
+	assign de_mod[0] = de_instr[0][28:26] == 3'b011 ? mod_io :
+										 de_instr[0][28:26] == 3'b111 ? mod_mem :
+										 de_instr[0][27:26] == 2'b10 ? mod_alu :
+										 de_instr[0][27:26] == 2'b00 ? mod_alu | mod_alu2 :
+										 de_instr[0][28:26] == 2'b01 ? mod_fpu | mod_fpu2 : 0;
+	assign de_mod[1] = de_instr[1][28:26] == 3'b011 ? mod_io :
+										 de_instr[1][28:26] == 3'b111 ? mod_mem :
+										 de_instr[1][27:26] == 2'b10 ? mod_alu :
+										 de_instr[1][27:26] == 2'b00 ? mod_alu | mod_alu2 :
+										 de_instr[1][28:26] == 2'b01 ? mod_fpu | mod_fpu2 : 0;
 	assign de_data[0] = {{de_pc[13:1],1'b0},de_ope[0],de_ds[0],de_dt[0],de_dd[0],de_imm[0],de_opr[0],de_ctrl[0],de_mod[0]};
 	assign de_data[1] = {{de_pc[13:1],1'b1},de_ope[1],de_ds[1],de_dt[1],de_dd[1],de_imm[1],de_opr[1],de_ctrl[1],de_mod[1]};
 	
 		
 	//wa
-	assign wa_pc[0] = wa_data[0][72:59];
-	assign wa_ope[0] = wa_data[0][58:53];
-	assign wa_ds[0] = wa_data[0][52:47];
-	assign wa_dt[0] = wa_data[0][46:41];
-	assign wa_dd[0] = wa_data[0][40:35];
-	assign wa_imm[0] = wa_data[0][34:19];
-	assign wa_opr[0] = wa_data[0][18:14];
-	assign wa_ctrl[0] = wa_data[0][13:10];
-	assign wa_mod[0] = wa_data[0][9:0];
-	assign wa_pc[1] = wa_data[1][72:59];
-	assign wa_ope[1] = wa_data[1][58:53];
-	assign wa_ds[1] = wa_data[1][52:47];
-	assign wa_dt[1] = wa_data[1][46:41];
-	assign wa_dd[1] = wa_data[1][40:35];
-	assign wa_imm[1] = wa_data[1][34:19];
-	assign wa_opr[1] = wa_data[1][18:14];
-	assign wa_ctrl[1] = wa_data[1][13:10];
-	assign wa_mod[1] = wa_data[1][9:0];
-	assign wa_pc[2] = wa_data[2][72:59];
-	assign wa_ope[2] = wa_data[2][58:53];
-	assign wa_ds[2] = wa_data[2][52:47];
-	assign wa_dt[2] = wa_data[2][46:41];
-	assign wa_dd[2] = wa_data[2][40:35];
-	assign wa_imm[2] = wa_data[2][34:19];
-	assign wa_opr[2] = wa_data[2][18:14];
-	assign wa_ctrl[2] = wa_data[2][13:10];
-	assign wa_mod[2] = wa_data[2][9:0];
-	assign wa_pc[3] = wa_data[3][72:59];
-	assign wa_ope[3] = wa_data[3][58:53];
-	assign wa_ds[3] = wa_data[3][52:47];
-	assign wa_dt[3] = wa_data[3][46:41];
-	assign wa_dd[3] = wa_data[3][40:35];
-	assign wa_imm[3] = wa_data[3][34:19];
-	assign wa_opr[3] = wa_data[3][18:14];
-	assign wa_ctrl[3] = wa_data[3][13:10];
-	assign wa_mod[3] = wa_data[3][9:0];
+	assign wa_pc[0] = wa_data[0][68:55];
+	assign wa_ope[0] = wa_data[0][54:49];
+	assign wa_ds[0] = wa_data[0][48:43];
+	assign wa_dt[0] = wa_data[0][42:37];
+	assign wa_dd[0] = wa_data[0][36:31];
+	assign wa_imm[0] = wa_data[0][30:15];
+	assign wa_opr[0] = wa_data[0][14:10];
+	assign wa_ctrl[0] = wa_data[0][9:6];
+	assign wa_mod[0] = wa_data[0][5:0];
 	assign wa_std_board[0] <= (1 << wa_ds[0]) & (1 << wa_dt[0]) & (1 << wa_dd[0]) & mask;
 	assign wa_std_board[1] <= (1 << wa_ds[1]) & (1 << wa_dt[1]) & (1 << wa_dd[1]) & mask;
 	assign wa_std_board[2] <= (1 << wa_ds[2]) & (1 << wa_dt[2]) & (1 << wa_dd[2]) & mask;
