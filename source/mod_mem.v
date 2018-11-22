@@ -16,7 +16,7 @@ module mem(
 	output wire [3:0] d_we
 	);
 	
-	reg [18:0] s1_addr;
+	reg [16:0] s1_addr;
 	reg [31:0] s1_wdata;
 	reg [5:0] s1_dd;
 	reg s1_is_write;
@@ -27,7 +27,7 @@ module mem(
 	reg [5:0] s3_dd;
 	reg s3_is_write;
 	
-	assign d_addr = s1_addr;
+	assign d_addr = {s1_addr,2'b00};
 	assign d_wdata = s1_wdata;
 	assign d_en = 1;
 	assign d_we = {4{s1_is_write}};
