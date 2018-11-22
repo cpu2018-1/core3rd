@@ -66,6 +66,7 @@ module cpu3(
 	wire [68:0] de_data [1:0];
 	//wait
 	reg [68:0] wa_data [2:0];
+	reg wa_is_en [2:0];
 	wire [13:0] wa_pc [2:0];
 	wire [5:0] wa_ope [2:0];
 	wire [5:0] wa_ds [2:0];
@@ -167,7 +168,7 @@ module cpu3(
 	assign i_en = 1'b1;
 
 	//if
-	assign if_is_en[0] = if_pc[0] == 0 && ~b_is_hazard;
+	assign if_is_en[0] = ~if_pc[0] && ~b_is_hazard;
 	assign if_is_en[1] = ~b_is_hazard;
 
 	//de
@@ -261,7 +262,8 @@ module cpu3(
 	assign wa_std_board[0] <= (1 << wa_ds[0]) & (1 << wa_dt[0]) & (1 << wa_dd[0]) & mask;
 	assign wa_std_board[1] <= (1 << wa_ds[1]) & (1 << wa_dt[1]) & (1 << wa_dd[1]) & mask;
 	assign wa_std_board[2] <= (1 << wa_ds[2]) & (1 << wa_dt[2]) & (1 << wa_dd[2]) & mask;
-	assign wa_is_busy = //////////////////
+	// もしかしたら遅いかも
+	assign wa_is_busy = (wa_is_en[0] + wa_is_en[1] + wa_is_en[2]) - (issued[0] + issued[1] + issued[2]) < 2;
 
 
 	//exec
@@ -270,29 +272,29 @@ module cpu3(
 	assign board2 = board & (1 << wa_dd[0] & (1 << wa_dd[1]) & wa_std_board[2] & mask; 
 	assign alu_get =
 			b_is_hazard ? 3'b000 :
- 			board0 == 0 && (wa_mod[0] == mod_alu) && ~alu2_get[0] ? 3'b001 :
-			board1 == 0 && (wa_mod[1] == mod_alu) && ~alu2_get[1] ? 3'b010 :
-			board2 == 0 && (wa_mod[2] == mod_alu) && ~alu2_get[2] ? 3'b100 : 3'b000;
+ 			board0 == 0 && (wa_mod[0] & mod_alu) != 0 && ~alu2_get[0] ? 3'b001 :
+			board1 == 0 && (wa_mod[1] & mod_alu) != 0 && ~alu2_get[1] ? 3'b010 :
+			board2 == 0 && (wa_mod[2] & mod_alu) != 0 && ~alu2_get[2] ? 3'b100 : 3'b000;
 	assign alu2_get = 
 			b_is_hazard ? 3'b000 :
-			board0 == 0 && (wa_mod[0] == mod_alu2) ? 3'b001 :
+			board0 == 0 && (wa_mod[0] & mod_alu2) != 0 ? 3'b001 :
 			wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0 ? 3'b000 :
-			board1 == 0 && (wa_mod[1] == mod_alu2) ? 3'b010 :
+			board1 == 0 && (wa_mod[1] & mod_alu2) != 0 ? 3'b010 :
 			wa_ope[1][1:0] == 2'b10 && wa_ope[0][5:3] != 0 ? 3'b000 :
-			board2 == 0 && (wa_mod[2] == mod_alu2) ? 3'b100 : 3'b000;
+			board2 == 0 && (wa_mod[2] & mod_alu2) != 0 ? 3'b100 : 3'b000;
 	assign io_get = 
 			b_is_hazard || io_busy ? 3'b000 :
 			board0 == 0 && (wa_mod[0] == mod_io) ? 3'b001 :
-			wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0 ? 3'b000 :
+			wa_mod[0] == mod_io || (wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0) ? 3'b000 :
 			board1 == 0 && (wa_mod[1] == mod_io) ? 3'b010 :
-			wa_ope[1][1:0] == 2'b10 && wa_ope[0][5:3] != 0 ? 3'b000 :
+			wa_mod[1] == mod_io || (wa_ope[1][1:0] == 2'b10 && wa_ope[0][5:3] != 0) ? 3'b000 :
 			board2 == 0 && (wa_mod[2] == mod_io) ? 3'b100 : 3'b000;
 	assign mem_get = 
 			b_is_hazard ? 3'b000 :
 			board0 == 0 && (wa_mod[0] == mod_mem) ? 3'b001 :
-			wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0 ? 3'b000 :
+			wa_mod[0] == mod_mem || (wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0) ? 3'b000 :
 			board1 == 0 && (wa_mod[1] == mod_mem) ? 3'b010 :
-			wa_ope[1][1:0] == 2'b10 && wa_ope[1][5:3] != 0 ?  3'b000 :
+			wa_mod[1] == mod_mem || (wa_ope[1][1:0] == 2'b10 && wa_ope[1][5:3] != 0) ?  3'b000 :
 			board2 == 0 && (wa_mod[2] == mod_mem) ? 3'b100 : 3'b000;
 	assign fpu_get = 0;///////
 	assign fpu2_get = 0;///////
@@ -316,8 +318,9 @@ module cpu3(
 				de_tmp_instr[i1] <= 0;
 				de_tmp_is_en[i1] <= 0;
 			end
-			for(i2=0;i2 < 4; i2=i2+1) begin
+			for(i2=0;i2 < 3; i2=i2+1) begin
 				wa_data[i2] <= 0;
+				wa_is_en[i2] <= 0;
 			end
 			wa_was_busy <= 0;
 			board <= 0;
@@ -380,10 +383,74 @@ module cpu3(
 										 de_tmp_used ? de_tmp_is_en[1] : if_is_en[1];
 			//wait
 			wa_was_busy <= wa_is_busy;
-			wa_data[0] <= b_is_hazard ? 0 : //////////
-			wa_data[1] <= b_is_hazard ? 0 : //////////
-			wa_data[2] <= b_is_hazard ? 0 : //////////
-			board <= //////////
+			wa_data[0] <= b_is_hazard ? 0 : 
+										wa_is_en[0] && ~issued[0] ? wa_data[0] :
+										wa_is_en[1] && ~issued[1] ? wa_data[1] :
+										wa_is_en[2] && ~issued[2] ? wa_data[2] :
+										de_is_en[0] ? de_data[0] :
+										de_is_en[1] ? de_data[1] : 0;
+			wa_data[1] <= b_is_hazard ? 0 :
+										wa_is_en[0] && ~issued[0] && wa_is_en[1] && ~issued[1] ? wa_data[1] :
+										((~wa_is_en[0] || issued[0])^(~wa_is_en[1] || issued[1])) &&
+												wa_is_en[2] && ~issued[2] ? wa_data[2] :
+										((~wa_is_en[0] || issued[0])^(~wa_is_en[1] || issued[1])) &&
+									     (~wa_is_en[2] || issued[2]) && de_is_en[0] ? de_data[0] :
+										(~wa_is_en[0] || issued[0]) && (~wa_is_en[1] || issued[1]) && wa_is_en[2] && ~issued[2] && 
+												de_is_en[0] ? de_data[0] :
+										((~wa_is_en[0] || issued[0])^(~wa_is_en[1] || issued[1])) &&
+									     (~wa_is_en[2] || issued[2]) && ~de_is_en[0] && de_is_en[1] ? de_data[1] :
+										(~wa_is_en[0] || issued[0]) && (~wa_is_en[1] || issued[1]) &&
+												((~wa_is_en[2] || issued[2])^(~de_is_en[0])) && de_is_en[1] ? de_data[1] : 0;
+			wa_data[2] <= b_is_hazard ? 0 : 
+										wa_is_en[0] && ~issued[0] && wa_is_en[1] && ~issued[1] && 
+												wa_is_en[2] && ~issued[2] ? wa_data[2] :
+										wa_is_en[0] && ~issued[0] && wa_is_en[1] && ~issued[1] &&
+												(~wa_is_en[2] || issued[2]) && de_is_en[0] ? de_data[0] :
+										((~wa_is_en[0] || issued[0])^(~wa_is_en[1] || issued[1])) &&
+												wa_is_en[2] && ~issued[2] && de_is_en[0] ? de_data[0] :
+										wa_is_en[0] && ~issued[0] && wa_is_en[1] && ~issued[1] &&
+												(~wa_is_en[2] || issued[2]) && ~de_is_en[0] && de_is_en[1] ? de_data[1] :
+										((~wa_is_en[0] || issued[0])^(~wa_is_en[1] || issued[1])) &&
+												((~wa_is_en[2] || issued[2])^(~de_is_en[0])) && de_is_en[1] ? de_data[1] :
+										(~wa_is_en[0] || issued[0]) && (~wa_is_en[1] || issued[1]) &&
+												wa_is_en[2] && ~issued[2] && de_is_en[0] && de_is_en[1] ? de_data[1] : 0;
+			
+			wa_is_en[0] <= b_is_hazard ? 0 :
+			               wa_is_en[0] && ~issued[0] ? wa_is_en[0] :
+			               wa_is_en[1] && ~issued[1] ? wa_is_en[1] :
+			               wa_is_en[2] && ~issued[2] ? wa_is_en[2] :
+			               de_is_en[0] ? de_is_en[0] :
+			               de_is_en[1] ? de_is_en[1] : 0;
+			wa_is_en[1] <= b_is_hazard ? 0 :
+			               wa_is_en[0] && ~issued[0] && wa_is_en[1] && ~issued[1] ? wa_is_en[1] :
+			               ((~wa_is_en[0] || issued[0])^(~wa_is_en[1] || issued[1])) &&
+			 		              wa_is_en[2] && ~issued[2] ? wa_is_en[2] :
+			               ((~wa_is_en[0] || issued[0])^(~wa_is_en[1] || issued[1])) &&
+			 		              (~wa_is_en[2] || issued[2]) && de_is_en[0] ? de_is_en[0] :
+			               (~wa_is_en[0] || issued[0]) && (~wa_is_en[1] || issued[1]) && wa_is_en[2] && ~issued[2] &&
+					               de_is_en[0] ? de_is_en[0] :
+			               ((~wa_is_en[0] || issued[0])^(~wa_is_en[1] || issued[1])) &&
+					               (~wa_is_en[2] || issued[2]) && ~de_is_en[0] && de_is_en[1] ? de_is_en[1] :
+			               (~wa_is_en[0] || issued[0]) && (~wa_is_en[1] || issued[1]) &&
+					               ((~wa_is_en[2] || issued[2])^(~de_is_en[0])) && de_is_en[1] ? de_is_en[1] : 0;
+			wa_is_en[2] <= b_is_hazard ? 0 :
+			               wa_is_en[0] && ~issued[0] && wa_is_en[1] && ~issued[1] &&
+					               wa_is_en[2] && ~issued[2] ? wa_is_en[2] :
+			               wa_is_en[0] && ~issued[0] && wa_is_en[1] && ~issued[1] &&
+					               (~wa_is_en[2] || issued[2]) && de_is_en[0] ? de_is_en[0] :
+			               ((~wa_is_en[0] || issued[0])^(~wa_is_en[1] || issued[1])) &&
+					                wa_is_en[2] && ~issued[2] && de_is_en[0] ? de_is_en[0] :
+			               wa_is_en[0] && ~issued[0] && wa_is_en[1] && ~issued[1] &&
+					               (~wa_is_en[2] || issued[2]) && ~de_is_en[0] && de_is_en[1] ? de_is_en[1] :
+			               ((~wa_is_en[0] || issued[0])^(~wa_is_en[1] || issued[1])) &&
+					               ((~wa_is_en[2] || issued[2])^(~de_is_en[0])) && de_is_en[1] ? de_is_en[1] :
+			               (~wa_is_en[0] || issued[0]) && (~wa_is_en[1] || issued[1]) &&
+					                wa_is_en[2] && ~issued[2] && de_is_en[0] && de_is_en[1] ? de_is_en[1] : 0;
+
+			board <= (board & ~(1 << alu_reg_addr) & ~(1 << alu2_reg_addr) & ~(1 << io_reg_addr) & 
+									~(1 << mem_reg_addr) & ~(1 << fpu_reg_addr) & ~(1 << fpu2_reg_addr)) |
+								(issued[0] ? (1 << wa_dd[0]) : 0) | (issued[1] ? (1 << wa_dd[1]) : 0) | 
+								(issued[2] ? (1 << wa_dd[2]) : 0);
 
 			//exec
 			//alu
