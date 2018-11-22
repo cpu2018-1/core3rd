@@ -7,7 +7,7 @@ module cpu3(
 	input wire [63:0] i_rdata,
 	output wire i_en,
 	//data memory
-	output wire [21:0] d_addr,
+	output wire [18:0] d_addr,
 	output wire [31:0] d_wdata,
 	input wire [31:0] d_rdata,
 	output wire d_en,
@@ -82,16 +82,28 @@ module cpu3(
 	reg wa_was_busy;
 	//exec
 		// io
+	wire [2:0] io_get;
 	reg [5:0] io_ope;
 	reg [31:0] io_ds_val;
 	reg [5:0] io_dd;
+	wire [5:0] io_reg_addr;
+	wire [31:0] io_dd_val;
+	wire io_busy;
+	io uio(clk,rstn,io_ope,io_ds_val,io_dd,io_reg_addr,io_dd_val,io_busy,
+			io_in_data,io_in_rdy,io_in_vld,io_out_data,io_out_rdy,io_out_vld);
 		//mem
+	wire [2:0] mem_get;
 	reg [5:0] mem_ope;
 	reg [31:0] mem_ds_val;
 	reg [31:0] mem_dt_val;
 	reg [5:0] mem_dd;
 	reg [15:0] mem_imm;
+	wire [5:0] mem_reg_addr;
+	wire [31:0] mem_dd_val;
+	mem umem(clk,rstn,mem_ope,mem_ds_val,mem_dt_val,mem_dd,mem_imm,mem_reg_addr,mem_dd_val,
+			d_addr,d_wdata,d_rdata,d_en,d_we);
 		//alu(+j/b)
+	wire [2:0] alu_get;
 	reg [5:0] alu_ope;
 	reg [13:0] alu_pc;
 	reg [31:0] alu_ds_val;
@@ -99,32 +111,56 @@ module cpu3(
 	reg [5:0] alu_dd;
 	reg [15:0] alu_imm;
 	reg [4:0] alu_opr;
+	wire b_is_hazard;
+	wire [13:0] b_addr;
+	wire [5:0] alu_reg_addr;
+	wire [31:0] alu_dd_val;
+	alu ualu(clk,rstn,alu_ope,alu_pc,alu_ds_val,alu_dt_val,alu_dd,alu_imm,alu_opr,
+			b_is_hazard,b_addr,alu_reg_addr,alu_dd_val);
 		//alu2
+	wire [2:0] alu2_get;
 	reg [5:0] alu2_ope;
 	reg [31:0] alu2_ds_val
 	reg [31:0] alu2_dt_val;
 	reg [5:0] alu2_dd;
 	reg [15:0] alu2_imm;
+	wire [5:0] alu2_reg_addr;
+	wire [31:0] alu2_dd_val;
+	alu2 ualu2(clk,rstn,alu2_ope,alu2_ds_val,alu2_dt_val,alu2_dd,alu2_imm,alu2_reg_addr,alu2_dd_val);
 		//fpu
+	wire [2:0] fpu_get;
 	reg [5:0] fpu_ope;
 	reg [31:0] fpu_ds_val;
 	reg [31:0] fpu_dt_val;
 	reg [5:0] fpu_dd;
 	reg [15:0] fpu_imm;
 	reg [3:0] fpu_ctrl;
+	wire [5:0] fpu_reg_addr;
+	wire [31:0] fpu_dd_val;
+
+	assign fpu_reg_addr = 0; //////
+	assign fpu_dd_val = 0; /////////
+
 		//fpu2
+	wire [2:0] fpu2_get;
 	reg [5:0] fpu2_ope;
 	reg [31:0] fpu2_ds_val;
 	reg [31:0] fpu2_dt_val;
 	reg [5:0] fpu2_dd;
 	reg [15:0] fpu2_imm;
 	reg [3:0] fpu2_ctrl;
+	wire [5:0] fpu2_reg_addr;
+	wire [31:0] fpu2_dd_val;
+
+	assign fpu2_reg_addr = 0; //////
+	assign fpu2_dd_val = 0; //////
 
 	//board {fpr,gpr}
 	reg [63:0] board;
-
-	//hazard
-	wire b_is_hazard;
+	wire [63:0] board0;
+	wire [63:0] board1;
+	wire [63:0] board2;
+	wire [2:0] issued;
 
 	//instr mem
 	assign i_addr = {pc[13:1],3'b000};
@@ -197,13 +233,72 @@ module cpu3(
 	assign wa_opr[0] = wa_data[0][14:10];
 	assign wa_ctrl[0] = wa_data[0][9:6];
 	assign wa_mod[0] = wa_data[0][5:0];
-	assign wa_ds_val[0] = regfile[wa_ds];
-	assign wa_dt_val[0] = regfile[wa_dt];
-	//あとで複製な
+	assign wa_ds_val[0] = wa_ds[0][4:0] == 0 ? 0 : regfile[wa_ds[0]];
+	assign wa_dt_val[0] = wa_dt[0][4:0] == 0 ? 0 : regfile[wa_dt[0]];
+	assign wa_pc[1] = wa_data[1][68:55];
+	assign wa_ope[1] = wa_data[1][54:49];
+	assign wa_ds[1] = wa_data[1][48:43];
+	assign wa_dt[1] = wa_data[1][42:37];
+	assign wa_dd[1] = wa_data[1][36:31];
+	assign wa_imm[1] = wa_data[1][30:15];
+	assign wa_opr[1] = wa_data[1][14:10];
+	assign wa_ctrl[1] = wa_data[1][9:6];
+	assign wa_mod[1] = wa_data[1][5:0];
+	assign wa_ds_val[1] = wa_ds[1][4:0] == 0 ? 0 : regfile[wa_ds[1]];
+	assign wa_dt_val[1] = wa_dt[1][4:0] == 0 ? 0 : regfile[wa_dt[1]];
+	assign wa_pc[1] = wa_data[1][68:55];
+	assign wa_ope[1] = wa_data[1][54:49];
+	assign wa_ds[1] = wa_data[1][48:43];
+	assign wa_dt[1] = wa_data[1][42:37];
+	assign wa_dd[1] = wa_data[1][36:31];
+	assign wa_imm[1] = wa_data[1][30:15];
+	assign wa_opr[1] = wa_data[1][14:10];
+	assign wa_ctrl[1] = wa_data[1][9:6];
+	assign wa_mod[1] = wa_data[1][5:0];
+	assign wa_ds_val[1] = wa_ds[2][4:0] == 0 ? 0 : regfile[wa_ds[1]];
+	assign wa_dt_val[1] = wa_dt[2][4:0] == 0 ? 0 : regfile[wa_dt[1]];
+
 	assign wa_std_board[0] <= (1 << wa_ds[0]) & (1 << wa_dt[0]) & (1 << wa_dd[0]) & mask;
 	assign wa_std_board[1] <= (1 << wa_ds[1]) & (1 << wa_dt[1]) & (1 << wa_dd[1]) & mask;
 	assign wa_std_board[2] <= (1 << wa_ds[2]) & (1 << wa_dt[2]) & (1 << wa_dd[2]) & mask;
 	assign wa_is_busy = //////////////////
+
+
+	//exec
+	assign board0 = board & wa_std_board[0] & mask;
+	assign board1 = board & (1 << wa_dd[0]) & wa_std_board[1] & mask;
+	assign board2 = board & (1 << wa_dd[0] & (1 << wa_dd[1]) & wa_std_board[2] & mask; 
+	assign alu_get =
+			b_is_hazard ? 3'b000 :
+ 			board0 == 0 && (wa_mod[0] == mod_alu) && ~alu2_get[0] ? 3'b001 :
+			board1 == 0 && (wa_mod[1] == mod_alu) && ~alu2_get[1] ? 3'b010 :
+			board2 == 0 && (wa_mod[2] == mod_alu) && ~alu2_get[2] ? 3'b100 : 3'b000;
+	assign alu2_get = 
+			b_is_hazard ? 3'b000 :
+			board0 == 0 && (wa_mod[0] == mod_alu2) ? 3'b001 :
+			wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0 ? 3'b000 :
+			board1 == 0 && (wa_mod[1] == mod_alu2) ? 3'b010 :
+			wa_ope[1][1:0] == 2'b10 && wa_ope[0][5:3] != 0 ? 3'b000 :
+			board2 == 0 && (wa_mod[2] == mod_alu2) ? 3'b100 : 3'b000;
+	assign io_get = 
+			b_is_hazard || io_busy ? 3'b000 :
+			board0 == 0 && (wa_mod[0] == mod_io) ? 3'b001 :
+			wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0 ? 3'b000 :
+			board1 == 0 && (wa_mod[1] == mod_io) ? 3'b010 :
+			wa_ope[1][1:0] == 2'b10 && wa_ope[0][5:3] != 0 ? 3'b000 :
+			board2 == 0 && (wa_mod[2] == mod_io) ? 3'b100 : 3'b000;
+	assign mem_get = 
+			b_is_hazard ? 3'b000 :
+			board0 == 0 && (wa_mod[0] == mod_mem) ? 3'b001 :
+			wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0 ? 3'b000 :
+			board1 == 0 && (wa_mod[1] == mod_mem) ? 3'b010 :
+			wa_ope[1][1:0] == 2'b10 && wa_ope[1][5:3] != 0 ?  3'b000 :
+			board2 == 0 && (wa_mod[2] == mod_mem) ? 3'b100 : 3'b000;
+	assign fpu_get = 0;///////
+	assign fpu2_get = 0;///////
+	
+	assign issued = alu_get | alu2_get | io_get | mem_get | fpu_get | fpu2_get;
+
 
 	integer i1,i2;
 
@@ -226,6 +321,27 @@ module cpu3(
 			end
 			wa_was_busy <= 0;
 			board <= 0;
+
+			io_ope <= 0;
+			io_ds_val <= 0;
+			io_dd <= 0;
+			mem_ope <= 0;
+			mem_ds_val <= 0;
+			mem_dt_val <= 0;
+			mem_dd <= 0;
+			mem_imm <= 0;
+			alu_ope <= 0;
+			alu_pc <= 0;
+			alu_ds_val <= 0;
+			alu_dt_val <= 0;
+			alu_dd <= 0;
+			alu_imm <= 0;
+			alu_opr <= 0;
+			alu2_ope <= 0;
+			alu2_ds_val <= 0;
+			alu2_dt_val <= 0;
+			alu2_dd <= 0;
+			alu2_imm <= 0;
 		end else if(state == st_begin) begin
 			pc <= 1;
 			state <= st_normal;
@@ -264,7 +380,113 @@ module cpu3(
 										 de_tmp_used ? de_tmp_is_en[1] : if_is_en[1];
 			//wait
 			wa_was_busy <= wa_is_busy;
+			wa_data[0] <= b_is_hazard ? 0 : //////////
+			wa_data[1] <= b_is_hazard ? 0 : //////////
+			wa_data[2] <= b_is_hazard ? 0 : //////////
 			board <= //////////
+
+			//exec
+			//alu
+			if (alu_get == 3'b001) begin
+				alu_ope <= wa_ope[0];
+				alu_pc <= wa_pc[0];
+				alu_ds_val <= wa_ds_val[0];
+				alu_dt_val <= wa_dt_val[0];
+				alu_dd <= wa_dd[0];
+				alu_imm <= wa_imm[0];
+				alu_opr <= wa_opr[0];
+			end else if (alu_get == 3'b010 ) begin
+				alu_ope <= wa_ope[1];
+				alu_pc <= wa_pc[1];
+				alu_ds_val <= wa_ds_val[1];
+				alu_dt_val <= wa_dt_val[1];
+				alu_dd <= wa_dd[1];
+				alu_imm <= wa_imm[1];
+				alu_opr <= wa_opr[1];
+			end else if(alu_get == 3'b100) begin
+				alu_ope <= wa_ope[2];
+				alu_pc <= wa_pc[2];
+				alu_ds_val <= wa_ds_val[2];
+				alu_dt_val <= wa_dt_val[2];
+				alu_dd <= wa_dd[2];
+				alu_imm <= wa_imm[2];
+				alu_opr <= wa_opr[2];
+			end else begin
+				alu_ope <= 0;
+			end
+			//alu2
+			if (alu2_get == 3'b001) begin
+				alu2_ope <= wa_ope[0];
+				alu2_ds_val <= 	wa_ds_val[0];
+				alu2_dt_val <= wa_dt_val[0];
+				alu2_dd <= wa_dd[0];
+				alu2_imm <= wa_imm[0];
+			end else if (alu2_get == 3'b010) begin
+				alu2_ope <= wa_ope[1];
+				alu2_ds_val <= 	wa_ds_val[1];
+				alu2_dt_val <= wa_dt_val[1];
+				alu2_dd <= wa_dd[1];
+				alu2_imm <= wa_imm[1];
+			end else if (alu2_get == 3'b100) begin
+				alu2_ope <= wa_ope[2];
+				alu2_ds_val <= 	wa_ds_val[2];
+				alu2_dt_val <= wa_dt_val[2];
+				alu2_dd <= wa_dd[2];
+				alu2_imm <= wa_imm[2];
+			end else begin
+				alu2_ope <= 0;
+			end
+			//io
+			if (io_get == 3'b001) begin
+				io_ope <= wa_ope[0];
+				io_ds_val <= wa_ds_val[0];
+				io_dd <= wa_dd[0];
+			end else if (io_get == 3'b010) begin
+				io_ope <= wa_ope[1];
+				io_ds_val <= wa_ds_val[1];
+				io_dd <= wa_dd[1];
+			end else if (io_get == 3'b100) begin
+				io_ope <= wa_ope[2];
+				io_ds_val <= wa_ds_val[2];
+				io_dd <= wa_dd[2];
+			end else begin
+				io_ope <= 0;
+			end
+			//mem
+			if (mem_get == 3'b001) begin
+				mem_ope <= wa_ope[0];
+				mem_ds_val <= wa_ds_val[0];
+				mem_dt_val <= wa_dt_val[0];
+				mem_dd <= wa_dd[0];
+				mem_imm <= wa_imm[0];
+			end else if(mem_get == 3'b010) begin
+				mem_ope <= wa_ope[1];
+				mem_ds_val <= wa_ds_val[1];
+				mem_dt_val <= wa_dt_val[1];
+				mem_dd <= wa_dd[1];
+				mem_imm <= wa_imm[1];
+			end else if(mem_get == 3'b100) begin
+				mem_ope <= wa_ope[2];
+				mem_ds_val <= wa_ds_val[2];
+				mem_dt_val <= wa_dt_val[2];
+				mem_dd <= wa_dd[2];
+				mem_imm <= wa_imm[2];
+			end else begin
+				mem_ope <= 0;
+			end
+			//fpu
+
+			//fpu2
+
+
+			//write back
+			regfile[alu_reg_addr] <= alu_dd_val;
+			regfile[alu2_reg_addr] <= alu2_dd_val;
+			regfile[io_reg_addr] <= io_dd_val;
+			regfile[mem_reg_addr] <= mem_dd_val;
+			regfile[fpu_reg_addr] <= fpu_dd_val;
+			regfile[fpu2_reg_addr] <= fpu2_dd_val;
+
 		end
 	end
 
