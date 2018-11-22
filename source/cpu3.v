@@ -38,12 +38,19 @@ module cpu3(
 
 	reg [13:0] pc;
 	reg [2:0] state;
+
+	//register {fpr,gpr}
+	reg [31:0] regfile [63:0];
 	
 	//instruction fetch
 	reg [13:0] if_pc;
 	wire if_is_en [1:0];
 	//decode
 	reg [13:0] de_pc;
+	reg [31:0] de_tmp_instr [1:0];
+	reg [13:0] de_tmp_pc;
+	reg de_tmp_is_en [1:0];
+	reg de_tmp_used;
 	reg [31:0] de_instr [1:0];
 	reg de_is_en [1:0];
 	wire de_is_j [1:0];
@@ -58,19 +65,60 @@ module cpu3(
 	wire [5:0] de_mod [1:0];
 	wire [68:0] de_data [1:0];
 	//wait
-	reg [68:0] wa_data [3:0];
-	wire [13:0] wa_pc [3:0];
-	wire [5:0] wa_ope [3:0];
-	wire [5:0] wa_ds [3:0];
-	wire [5:0] wa_dt [3:0];
-	wire [5:0] wa_dd [3:0];
-	wire [15:0] wa_imm [3:0];
-	wire [4:0] wa_opr [3:0];
-	wire [3:0] wa_ctrl [3:0];
-	wire [5:0] wa_mod [3:0];
-	wire [63:0] wa_std_board [3:0];
+	reg [68:0] wa_data [2:0];
+	wire [13:0] wa_pc [2:0];
+	wire [5:0] wa_ope [2:0];
+	wire [5:0] wa_ds [2:0];
+	wire [5:0] wa_dt [2:0];
+	wire [5:0] wa_dd [2:0];
+	wire [15:0] wa_imm [2:0];
+	wire [4:0] wa_opr [2:0];
+	wire [3:0] wa_ctrl [2:0];
+	wire [5:0] wa_mod [2:0];
+	wire [63:0] wa_std_board [2:0];
+	wire [31:0] wa_ds_val [2:0];
+	wire [31:0] wa_dt_val [2:0];
 	wire wa_is_busy;
-
+	reg wa_was_busy;
+	//exec
+		// io
+	reg [5:0] io_ope;
+	reg [31:0] io_ds_val;
+	reg [5:0] io_dd;
+		//mem
+	reg [5:0] mem_ope;
+	reg [31:0] mem_ds_val;
+	reg [31:0] mem_dt_val;
+	reg [5:0] mem_dd;
+	reg [15:0] mem_imm;
+		//alu(+j/b)
+	reg [5:0] alu_ope;
+	reg [13:0] alu_pc;
+	reg [31:0] alu_ds_val;
+	reg [31:0] alu_dt_val;
+	reg [5:0] alu_dd;
+	reg [15:0] alu_imm;
+	reg [4:0] alu_opr;
+		//alu2
+	reg [5:0] alu2_ope;
+	reg [31:0] alu2_ds_val
+	reg [31:0] alu2_dt_val;
+	reg [5:0] alu2_dd;
+	reg [15:0] alu2_imm;
+		//fpu
+	reg [5:0] fpu_ope;
+	reg [31:0] fpu_ds_val;
+	reg [31:0] fpu_dt_val;
+	reg [5:0] fpu_dd;
+	reg [15:0] fpu_imm;
+	reg [3:0] fpu_ctrl;
+		//fpu2
+	reg [5:0] fpu2_ope;
+	reg [31:0] fpu2_ds_val;
+	reg [31:0] fpu2_dt_val;
+	reg [5:0] fpu2_dd;
+	reg [15:0] fpu2_imm;
+	reg [3:0] fpu2_ctrl;
 
 	//board {fpr,gpr}
 	reg [63:0] board;
@@ -149,10 +197,12 @@ module cpu3(
 	assign wa_opr[0] = wa_data[0][14:10];
 	assign wa_ctrl[0] = wa_data[0][9:6];
 	assign wa_mod[0] = wa_data[0][5:0];
+	assign wa_ds_val[0] = regfile[wa_ds];
+	assign wa_dt_val[0] = regfile[wa_dt];
+	//あとで複製な
 	assign wa_std_board[0] <= (1 << wa_ds[0]) & (1 << wa_dt[0]) & (1 << wa_dd[0]) & mask;
 	assign wa_std_board[1] <= (1 << wa_ds[1]) & (1 << wa_dt[1]) & (1 << wa_dd[1]) & mask;
 	assign wa_std_board[2] <= (1 << wa_ds[2]) & (1 << wa_dt[2]) & (1 << wa_dd[2]) & mask;
-	assign wa_std_board[3] <= (1 << wa_ds[3]) & (1 << wa_dt[3]) & (1 << wa_dd[3]) & mask;
 	assign wa_is_busy = //////////////////
 
 	integer i1,i2;
@@ -163,30 +213,57 @@ module cpu3(
 			state <= st_begin;
 			if_pc <= 0;
 			de_pc <= 0;
+			de_tmp_used <= 0;
+			de_tmp_pc <= 0;
 			for(i1=0;i1 < 2; i1=i1+1) begin
 				de_instr[i1] <= 0;
 				de_is_en[i1] <= 0;
+				de_tmp_instr[i1] <= 0;
+				de_tmp_is_en[i1] <= 0;
 			end
 			for(i2=0;i2 < 4; i2=i2+1) begin
 				wa_data[i2] <= 0;
 			end
+			wa_was_busy <= 0;
 			board <= 0;
 		end else if(state == st_begin) begin
 			pc <= 1;
 			state <= st_normal;
 		end else if(state == st_normal) begin
-			pc <= //////////////
+			pc <= b_is_hazard ? b_addr :
+						de_is_j[0] ? de_imm[0][13:0] :
+						de_is_j[1] ? de_imm[1][13:0] :
+						wa_is_busy ? pc :
+						{pc[13:1]+1,1'b0};
+
+
 			// instruction fetch
 			if_pc <= pc;
 			//decode
-			de_pc <= if_pc;
-			de_instr[0] <= wa_is_busy ? de_instr[0] : i_rdata[63:32];
-			de_instr[1] <= wa_is_busy ? de_instr[1] : i_rdata[31:0];
+			de_tmp_pc <= wa_is_busy && ~wa_was_busy ? if_pc : de_tmp_pc;
+			de_tmp_instr[0] <= wa_is_busy && ~wa_was_busy ? i_rdata[63:32] : de_tmp_instr[0];
+			de_tmp_instr[1] <= wa_is_busy && ~wa_was_busy ? i_rdata[31:0] : de_tmp_instr[1];
+			de_tmp_is_en[0] <= b_is_hazard ? 0 :
+												 wa_is_busy && ~wa_was_busy ? if_is_en[0] : de_tmp_is_en[0];
+			de_tmp_is_en[1] <= b_is_hazard ? 0 :
+												 wa_is_busy && ~wa_was_busy ? if_is_en[0] : de_tmp_is_en[1];
+			de_tmp_used <= wa_is_busy;
+
+			de_pc <= wa_is_busy ? de_pc :
+							 de_tmp_used ? de_tmp_pc : if_pc;
+			de_instr[0] <= wa_is_busy ? de_instr[0] :
+										 de_tmp_used ? de_tmp_instr[0] : i_rdata[63:32];
+			de_instr[1] <= wa_is_busy ? de_instr[1] :
+										 de_tmp_used ? de_tmp_instr[1] : i_rdata[31:0];
 			// enなのはifステージでenかつ制御ハザードが起きない
-			de_is_en[0] <= wa_is_busy ? de_is_en[0] : if_is_en[0] & ~b_is_hazard;
-			de_is_en[1] <= wa_is_busy ? de_is_en[1] : if_is_en[1] & ~b_is_hazard;
+			de_is_en[0] <= b_is_hazard ? 0 :
+										 wa_is_busy ? de_is_en[0] :
+										 de_tmp_used ? de_tmp_is_en[0] : if_is_en[0];
+			de_is_en[1] <= b_is_hazard ? 
+										 wa_is_busy ? de_is_en[1] :
+										 de_tmp_used ? de_tmp_is_en[1] : if_is_en[1];
 			//wait
-			
+			wa_was_busy <= wa_is_busy;
 			board <= //////////
 		end
 	end
