@@ -163,6 +163,7 @@ module cpu3(
 	wire [63:0] board1;
 	wire [63:0] board2;
 	wire [2:0] issued;
+	wire [63:0] dd_board [2:0];
 
 	//instr mem
 	assign i_addr = pc[13:1];
@@ -248,21 +249,21 @@ module cpu3(
 	assign wa_mod[1] = wa_data[1][5:0];
 	assign wa_ds_val[1] = wa_ds[1][4:0] == 0 ? 0 : regfile[wa_ds[1]];
 	assign wa_dt_val[1] = wa_dt[1][4:0] == 0 ? 0 : regfile[wa_dt[1]];
-	assign wa_pc[1] = wa_data[1][68:55];
-	assign wa_ope[1] = wa_data[1][54:49];
-	assign wa_ds[1] = wa_data[1][48:43];
-	assign wa_dt[1] = wa_data[1][42:37];
-	assign wa_dd[1] = wa_data[1][36:31];
-	assign wa_imm[1] = wa_data[1][30:15];
-	assign wa_opr[1] = wa_data[1][14:10];
-	assign wa_ctrl[1] = wa_data[1][9:6];
-	assign wa_mod[1] = wa_data[1][5:0];
-	assign wa_ds_val[1] = wa_ds[2][4:0] == 0 ? 0 : regfile[wa_ds[1]];
-	assign wa_dt_val[1] = wa_dt[2][4:0] == 0 ? 0 : regfile[wa_dt[1]];
+	assign wa_pc[2] = wa_data[2][68:55];
+	assign wa_ope[2] = wa_data[2][54:49];
+	assign wa_ds[2] = wa_data[2][48:43];
+	assign wa_dt[2] = wa_data[2][42:37];
+	assign wa_dd[2] = wa_data[2][36:31];
+	assign wa_imm[2] = wa_data[2][30:15];
+	assign wa_opr[2] = wa_data[2][14:10];
+	assign wa_ctrl[2] = wa_data[2][9:6];
+	assign wa_mod[2] = wa_data[2][5:0];
+	assign wa_ds_val[2] = wa_ds[2][4:0] == 0 ? 0 : regfile[wa_ds[2]];
+	assign wa_dt_val[2] = wa_dt[2][4:0] == 0 ? 0 : regfile[wa_dt[2]];
 
-	assign wa_std_board[0] = (1 << wa_ds[0]) & (1 << wa_dt[0]) & (1 << wa_dd[0]) & mask;
-	assign wa_std_board[1] = (1 << wa_ds[1]) & (1 << wa_dt[1]) & (1 << wa_dd[1]) & mask;
-	assign wa_std_board[2] = (1 << wa_ds[2]) & (1 << wa_dt[2]) & (1 << wa_dd[2]) & mask;
+	assign wa_std_board[0] = (1 << wa_ds[0]) & (1 << wa_dt[0]) & dd_board[0] & mask;
+	assign wa_std_board[1] = (1 << wa_ds[1]) & (1 << wa_dt[1]) & dd_board[1] & mask;
+	assign wa_std_board[2] = (1 << wa_ds[2]) & (1 << wa_dt[2]) & dd_board[2] & mask;
 	// 2個以上残るときはbusy
 	assign wa_is_busy = (wa_exist[0] && wa_exist[1]) || (wa_exist[1] && wa_exist[2]) || (wa_exist[2] && wa_exist[0]);
 
@@ -273,8 +274,8 @@ module cpu3(
 
 	//exec
 	assign board0 = board & wa_std_board[0] & mask;
-	assign board1 = board & (1 << wa_dd[0]) & wa_std_board[1] & mask;
-	assign board2 = board & (1 << wa_dd[0]) & (1 << wa_dd[1]) & wa_std_board[2] & mask; 
+	assign board1 = board & dd_board[0] & wa_std_board[1] & mask;
+	assign board2 = board & dd_board[0] & dd_board[1] & wa_std_board[2] & mask; 
 	assign alu_get =
 			b_is_hazard ? 3'b000 :
  			board0 == 0 && (wa_mod[0] & mod_alu) != 0 && ~alu2_get[0] ? 3'b001 :
@@ -305,7 +306,9 @@ module cpu3(
 	assign fpu2_get = 0;///////
 	
 	assign issued = alu_get | alu2_get | io_get | mem_get | fpu_get | fpu2_get;
-
+	assign dd_board[0] = 1 << wa_dd[0];
+	assign dd_board[1] = 1 << wa_dd[1];
+	assign dd_board[2] = 1 << wa_dd[2];
 
 	integer i1,i2;
 
@@ -351,7 +354,7 @@ module cpu3(
 			alu2_dd <= 0;
 			alu2_imm <= 0;
 		end else if(state == st_begin) begin
-			pc <= 1;
+			pc <= 2;
 			state <= st_normal;
 		end else if(state == st_normal) begin
 			pc <= b_is_hazard ? b_addr :
@@ -432,8 +435,8 @@ module cpu3(
 
 			board <= (board & ~(1 << alu_reg_addr) & ~(1 << alu2_reg_addr) & ~(1 << io_reg_addr) & 
 									~(1 << mem_reg_addr) & ~(1 << fpu_reg_addr) & ~(1 << fpu2_reg_addr)) |
-								(issued[0] ? (1 << wa_dd[0]) : 0) | (issued[1] ? (1 << wa_dd[1]) : 0) | 
-								(issued[2] ? (1 << wa_dd[2]) : 0);
+								(issued[0] ? dd_board[0] : 0) | (issued[1] ? dd_board[1] : 0) | 
+								(issued[2] ? dd_board[2] : 0);
 
 			//exec
 			//alu
