@@ -9,11 +9,11 @@ module mem(
 	output reg [5:0] reg_addr,
 	output reg [31:0] reg_dd_val,
 
-	output wire [18:0] d_addr,
+	output wire [16:0] d_addr,
 	output wire [31:0] d_wdata,
 	input wire [31:0] d_rdata,
 	output wire d_en,
-	output wire [3:0] d_we
+	output wire d_we
 	);
 	
 	reg [16:0] s1_addr;
@@ -27,10 +27,10 @@ module mem(
 	reg [5:0] s3_dd;
 	reg s3_is_write;
 	
-	assign d_addr = {s1_addr,2'b00};
+	assign d_addr = s1_addr;
 	assign d_wdata = s1_wdata;
 	assign d_en = 1;
-	assign d_we = {4{s1_is_write}};
+	assign d_we = s1_is_write;
 
 	always @(posedge clk) begin
 		if(~rstn) begin

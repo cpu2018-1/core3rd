@@ -3,15 +3,15 @@ module cpu3(
 	input wire rstn,
 	output reg [7:0] err,
 	//instr memory
-	output wire [15:0] i_addr,
+	output wire [12:0] i_addr,
 	input wire [63:0] i_rdata,
 	output wire i_en,
 	//data memory
-	output wire [18:0] d_addr,
+	output wire [16:0] d_addr,
 	output wire [31:0] d_wdata,
 	input wire [31:0] d_rdata,
 	output wire d_en,
-	output wire [3:0] d_we,
+	output wire d_we,
 	//IO
 	input wire [7:0] io_in_data,
 	output wire io_in_rdy,
@@ -122,7 +122,7 @@ module cpu3(
 		//alu2
 	wire [2:0] alu2_get;
 	reg [5:0] alu2_ope;
-	reg [31:0] alu2_ds_val
+	reg [31:0] alu2_ds_val;
 	reg [31:0] alu2_dt_val;
 	reg [5:0] alu2_dd;
 	reg [15:0] alu2_imm;
@@ -165,7 +165,7 @@ module cpu3(
 	wire [2:0] issued;
 
 	//instr mem
-	assign i_addr = {pc[13:1],3'b000};
+	assign i_addr = pc[13:1];
 	assign i_en = 1'b1;
 
 	//if
@@ -184,11 +184,11 @@ module cpu3(
 	assign de_ds[1] = de_instr[1][28:26] == 3'b001 && ~de_instr[1][1] ? 
 											{1'b1,de_instr[1][20:16]} : {1'b0,de_instr[1][20:16]};
 	assign de_dt[0] = de_instr[0][31:26] == 6'b010010 || de_instr[0][31:26] == 6'b011010 || 
-											de_instr[0][28:26] == 3'b100 || de_instr[0][31:26] == 6'b000111 ?{1'b0,de_instr[0][15:11] :
+											de_instr[0][28:26] == 3'b100 || de_instr[0][31:26] == 6'b000111 ?{1'b0,de_instr[0][15:11]} :
 										de_instr[0][31:26] == 6'b100111 || 
 											(de_instr[0][28:26] == 3'b001 && de_instr[0][0]) ? {1'b1,de_instr[0][15:11]} : 0;
 	assign de_dt[1] = de_instr[1][31:26] == 6'b010010 || de_instr[1][31:26] == 6'b011010 || 
-											de_instr[1][28:26] == 3'b100 || de_instr[1][31:26] == 6'b000111 ?{1'b0,de_instr[1][15:11] :
+											de_instr[1][28:26] == 3'b100 || de_instr[1][31:26] == 6'b000111 ?{1'b0,de_instr[1][15:11]} :
 										de_instr[1][31:26] == 6'b100111 || 
 											(de_instr[1][28:26] == 3'b001 && de_instr[1][0]) ? {1'b1,de_instr[1][15:11]} : 0;
 	assign de_dd[0] = de_instr[0][28:26] == 3'b110 ? 6'b011111 : // JR, JALR
@@ -260,9 +260,9 @@ module cpu3(
 	assign wa_ds_val[1] = wa_ds[2][4:0] == 0 ? 0 : regfile[wa_ds[1]];
 	assign wa_dt_val[1] = wa_dt[2][4:0] == 0 ? 0 : regfile[wa_dt[1]];
 
-	assign wa_std_board[0] <= (1 << wa_ds[0]) & (1 << wa_dt[0]) & (1 << wa_dd[0]) & mask;
-	assign wa_std_board[1] <= (1 << wa_ds[1]) & (1 << wa_dt[1]) & (1 << wa_dd[1]) & mask;
-	assign wa_std_board[2] <= (1 << wa_ds[2]) & (1 << wa_dt[2]) & (1 << wa_dd[2]) & mask;
+	assign wa_std_board[0] = (1 << wa_ds[0]) & (1 << wa_dt[0]) & (1 << wa_dd[0]) & mask;
+	assign wa_std_board[1] = (1 << wa_ds[1]) & (1 << wa_dt[1]) & (1 << wa_dd[1]) & mask;
+	assign wa_std_board[2] = (1 << wa_ds[2]) & (1 << wa_dt[2]) & (1 << wa_dd[2]) & mask;
 	// 2個以上残るときはbusy
 	assign wa_is_busy = (wa_exist[0] && wa_exist[1]) || (wa_exist[1] && wa_exist[2]) || (wa_exist[2] && wa_exist[0]);
 
@@ -274,7 +274,7 @@ module cpu3(
 	//exec
 	assign board0 = board & wa_std_board[0] & mask;
 	assign board1 = board & (1 << wa_dd[0]) & wa_std_board[1] & mask;
-	assign board2 = board & (1 << wa_dd[0] & (1 << wa_dd[1]) & wa_std_board[2] & mask; 
+	assign board2 = board & (1 << wa_dd[0]) & (1 << wa_dd[1]) & wa_std_board[2] & mask; 
 	assign alu_get =
 			b_is_hazard ? 3'b000 :
  			board0 == 0 && (wa_mod[0] & mod_alu) != 0 && ~alu2_get[0] ? 3'b001 :
@@ -383,7 +383,7 @@ module cpu3(
 			de_is_en[0] <= b_is_hazard ? 0 :
 										 wa_is_busy ? de_is_en[0] :
 										 de_tmp_used ? de_tmp_is_en[0] : if_is_en[0];
-			de_is_en[1] <= b_is_hazard ? 
+			de_is_en[1] <= b_is_hazard ? 0 :
 										 wa_is_busy ? de_is_en[1] :
 										 de_tmp_used ? de_tmp_is_en[1] : if_is_en[1];
 			//wait
@@ -405,7 +405,7 @@ module cpu3(
 										wa_exist[0] && wa_exist[1] && wa_exist[2] ? wa_data[2] :
 										wa_exist[0] && wa_exist[1] &&	~wa_exist[2] && de_is_en[0] ? de_data[0] :
 										(wa_exist[0] ^ wa_exist[1]) && wa_exist[2] && de_is_en[0] ? de_data[0] :
-										wa_exist[0] && wa_exist[1] ~wa_exist[2] && ~de_is_en[0] && de_is_en[1] ? de_data[1] :
+										wa_exist[0] && wa_exist[1] && ~wa_exist[2] && ~de_is_en[0] && de_is_en[1] ? de_data[1] :
 										(wa_exist[0] ^ wa_exist[1]) && (wa_exist[2] ^ de_is_en[0]) && de_is_en[1] ? de_data[1] :
 										~wa_exist[0] && ~wa_exist[1] &&	wa_exist[2] && de_is_en[0] && de_is_en[1] ? de_data[1] : 0;
 			wa_is_en[0] <= b_is_hazard ? 0 :
@@ -425,7 +425,7 @@ module cpu3(
 										wa_exist[0] && wa_exist[1] && wa_exist[2] ? wa_is_en[2] :
 										wa_exist[0] && wa_exist[1] &&	~wa_exist[2] && de_is_en[0] ? de_is_en[0] :
 										(wa_exist[0] ^ wa_exist[1]) && wa_exist[2] && de_is_en[0] ? de_is_en[0] :
-										wa_exist[0] && wa_exist[1] ~wa_exist[2] && ~de_is_en[0] && de_is_en[1] ? de_is_en[1] :
+										wa_exist[0] && wa_exist[1] && ~wa_exist[2] && ~de_is_en[0] && de_is_en[1] ? de_is_en[1] :
 										(wa_exist[0] ^ wa_exist[1]) && (wa_exist[2] ^ de_is_en[0]) && de_is_en[1] ? de_is_en[1] :
 										~wa_exist[0] && ~wa_exist[1] &&	wa_exist[2] && de_is_en[0] && de_is_en[1] ? de_is_en[1] : 0;
 
