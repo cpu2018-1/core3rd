@@ -147,7 +147,7 @@ module unit2(
 			m3_dd <= 0;
 			m3_is_write <= 0;
 		end else if(ope[2:0] == 4'b111) begin			
-			m1_addr <= ds_val + imm;
+			m1_addr <= $signed(ds_val) + $signed(imm);
 			m1_wdata <= dt_val;
 			m1_dd <= dd;
 			m1_is_write <= ~ope[3];

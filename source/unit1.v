@@ -29,6 +29,7 @@ module unit1(
 	wire [31:0] sll;
 	wire [31:0] srl;
 	wire [31:0] sra;
+	wire [31:0] pc_1;
 
 	assign rs_eq_opr = $signed(ds_val) == $signed(opr);
 	assign rs_lt_opr = $signed(ds_val) < $signed(opr);
@@ -41,6 +42,7 @@ module unit1(
 	assign sll = alu_rs << alu_rt_imm[4:0];
 	assign srl = alu_rs >> alu_rt_imm[4:0];
 	assign sra = alu_rs >>> alu_rt_imm[4:0];
+	assign pc_1 = pc + 1;
 
 	assign is_busy = 0; /////// FPUと調整
 
@@ -118,7 +120,7 @@ module unit1(
          6'b000110: //JAL
            begin
              alu_addr <= 6'b011111;
-             alu_dd_val <= pc + 1;
+             alu_dd_val <= pc_1;
            end
          6'b001010: //JR
            begin
@@ -127,7 +129,7 @@ module unit1(
          6'b001110: //JALR
            begin
              alu_addr <= 6'b011111;
-             alu_dd_val <= pc + 1;
+             alu_dd_val <= pc_1;
            end
          default:
            begin

@@ -131,11 +131,15 @@ module cpu3(
 	wire [31:0] fpu2_dd_val;
 	unit3 u3(clk,rstn,u3_ds_val,u3_dt_val,u3_dd,u3_imm,u3_ctrl,u3_is_busy,fpu2_reg_addr,fpu2_dd_val);
 
+	//write back
+	reg [5:0] reg_addr [5:0];
+	reg [31:0] reg_wdata [5:0];
+	wire [31:0] reg_ds_data [2:0];
+	wire [31:0] reg_dt_data [2:0];
+
 	//board {fpr,gpr}
 	reg [63:0] board;
-	wire [63:0] board0;
-	wire [63:0] board1;
-	wire [63:0] board2;
+	wire dep_ok [2:0];
 	wire [2:0] issued;
 	wire [63:0] dd_board [2:0];
 
@@ -144,8 +148,8 @@ module cpu3(
 	assign i_en = 1'b1;
 
 	//if
-	assign if_is_en[0] = ~if_pc[0] && ~b_is_hazard;
-	assign if_is_en[1] = ~b_is_hazard;
+	assign if_is_en[0] = ~if_pc[0] && ~b_is_hazard && ~de_is_j[0] && ~de_is_j[1];
+	assign if_is_en[1] = ~b_is_hazard && ~de_is_j[0] && ~de_is_j[1];
 
 	//de
 	assign de_is_j[0] = de_is_en[0] && de_instr[0][31:30] == 2'b00 && de_instr[0][27:26] == 2'b10;
@@ -199,7 +203,8 @@ module cpu3(
 	assign de_latency[0] = {6'b0,de_instr[0][2:0] == 3'b011 ? 1'b1 : 1'b0}; 
 	assign de_latency[1] = {6'b0,de_instr[1][2:0] == 3'b011 ? 1'b1 : 1'b0}; 
 	assign de_data[0] = {{de_pc[13:1],1'b0},de_ope[0],de_ds[0],de_dt[0],de_dd[0],de_imm[0],de_opr[0],de_ctrl[0],de_mod[0],de_latency[0]};
-	assign de_data[1] = {{de_pc[13:1],1'b1},de_ope[1],de_ds[1],de_dt[1],de_dd[1],de_imm[1],de_opr[1],de_ctrl[1],de_mod[1],de_latency[1]};
+	assign de_data[1] =
+			de_is_j[0] ? 0 : {{de_pc[13:1],1'b1},de_ope[1],de_ds[1],de_dt[1],de_dd[1],de_imm[1],de_opr[1],de_ctrl[1],de_mod[1],de_latency[1]};
 	
 		
 	//wa
@@ -213,8 +218,8 @@ module cpu3(
 	assign wa_ctrl[0] = wa_data[0][13:10];
 	assign wa_mod[0] = wa_data[0][9:7];
 	assign wa_latency[0] = wa_data[0][6:0];
-	assign wa_ds_val[0] = wa_ds[0][4:0] == 0 ? 0 : regfile[wa_ds[0]];
-	assign wa_dt_val[0] = wa_dt[0][4:0] == 0 ? 0 : regfile[wa_dt[0]];
+	assign wa_ds_val[0] = reg_ds_data[0];
+	assign wa_dt_val[0] = reg_dt_data[0];
 
 	assign wa_pc[1] = wa_data[1][72:59];
 	assign wa_ope[1] = wa_data[1][58:53];
@@ -226,8 +231,8 @@ module cpu3(
 	assign wa_ctrl[1] = wa_data[1][13:10];
 	assign wa_mod[1] = wa_data[1][9:7];
 	assign wa_latency[1] = wa_data[1][6:0];
-	assign wa_ds_val[1] = wa_ds[1][4:0] == 0 ? 0 : regfile[wa_ds[1]];
-	assign wa_dt_val[1] = wa_dt[1][4:0] == 0 ? 0 : regfile[wa_dt[1]];
+	assign wa_ds_val[1] = reg_ds_data[1];
+	assign wa_dt_val[1] = reg_dt_data[1];
 
 	assign wa_pc[2] = wa_data[2][72:59];
 	assign wa_ope[2] = wa_data[2][58:53];
@@ -239,8 +244,8 @@ module cpu3(
 	assign wa_ctrl[2] = wa_data[2][13:10];
 	assign wa_mod[2] = wa_data[2][9:7];
 	assign wa_latency[2] = wa_data[2][6:0];
-	assign wa_ds_val[2] = wa_ds[2][4:0] == 0 ? 0 : regfile[wa_ds[2]];
-	assign wa_dt_val[2] = wa_dt[2][4:0] == 0 ? 0 : regfile[wa_dt[2]];
+	assign wa_ds_val[2] = reg_ds_data[2];
+	assign wa_dt_val[2] = reg_dt_data[2];
 
 	assign wa_std_board[0] = (1 << wa_ds[0]) & (1 << wa_dt[0]) & dd_board[0] & mask;
 	assign wa_std_board[1] = (1 << wa_ds[1]) & (1 << wa_dt[1]) & dd_board[1] & mask;
@@ -252,40 +257,109 @@ module cpu3(
 	assign wa_exist[1] = wa_is_en[1] && ~issued[1];
 	assign wa_exist[2] = wa_is_en[2] && ~issued[2];
 
+	assign reg_ds_data[0] = 
+			wa_ds[0][4:0] == 0 ? 0 : 
+/*
+			wa_ds[0][4:0] == reg_addr[5] ? reg_wdata[5] :
+			wa_ds[0][4:0] == reg_addr[4] ? reg_wdata[4] :
+			wa_ds[0][4:0] == reg_addr[3] ? reg_wdata[3] :
+			wa_ds[0][4:0] == reg_addr[2] ? reg_wdata[2] :
+			wa_ds[0][4:0] == reg_addr[1] ? reg_wdata[1] :
+			wa_ds[0][4:0] == reg_addr[0] ? reg_wdata[0] :
+*/		
+			regfile[wa_ds[0]];
+	assign reg_dt_data[0] = 
+			wa_dt[0][4:0] == 0 ? 0 : 
+/*
+			wa_dt[0][4:0] == reg_addr[5] ? reg_wdata[5] :
+			wa_dt[0][4:0] == reg_addr[4] ? reg_wdata[4] :
+			wa_dt[0][4:0] == reg_addr[3] ? reg_wdata[3] :
+			wa_dt[0][4:0] == reg_addr[2] ? reg_wdata[2] :
+			wa_dt[0][4:0] == reg_addr[1] ? reg_wdata[1] :
+			wa_dt[0][4:0] == reg_addr[0] ? reg_wdata[0] :
+*/
+			regfile[wa_dt[0]];
+
+	assign reg_ds_data[1] = 
+			wa_ds[1][4:0] == 0 ? 0 : 
+/*
+			wa_ds[1][4:0] == reg_addr[5] ? reg_wdata[5] :
+			wa_ds[1][4:0] == reg_addr[4] ? reg_wdata[4] :
+			wa_ds[1][4:0] == reg_addr[3] ? reg_wdata[3] :
+			wa_ds[1][4:0] == reg_addr[2] ? reg_wdata[2] :
+			wa_ds[1][4:0] == reg_addr[1] ? reg_wdata[1] :
+			wa_ds[1][4:0] == reg_addr[0] ? reg_wdata[0] :
+*/		
+			regfile[wa_ds[1]];
+	assign reg_dt_data[1] = 
+			wa_dt[1][4:0] == 0 ? 0 : 
+/*
+			wa_dt[1][4:0] == reg_addr[5] ? reg_wdata[5] :
+			wa_dt[1][4:0] == reg_addr[4] ? reg_wdata[4] :
+			wa_dt[1][4:0] == reg_addr[3] ? reg_wdata[3] :
+			wa_dt[1][4:0] == reg_addr[2] ? reg_wdata[2] :
+			wa_dt[1][4:0] == reg_addr[1] ? reg_wdata[1] :
+			wa_dt[1][4:0] == reg_addr[0] ? reg_wdata[0] :
+*/
+			regfile[wa_dt[1]];
+
+
+	assign reg_ds_data[2] = 
+			wa_ds[2][4:0] == 0 ? 0 : 
+/*
+			wa_ds[2][4:0] == reg_addr[5] ? reg_wdata[5] :
+			wa_ds[2][4:0] == reg_addr[4] ? reg_wdata[4] :
+			wa_ds[2][4:0] == reg_addr[3] ? reg_wdata[3] :
+			wa_ds[2][4:0] == reg_addr[2] ? reg_wdata[2] :
+			wa_ds[2][4:0] == reg_addr[1] ? reg_wdata[1] :
+			wa_ds[2][4:0] == reg_addr[0] ? reg_wdata[0] :
+*/		
+			regfile[wa_ds[2]];
+	assign reg_dt_data[2] = 
+			wa_dt[2][4:0] == 0 ? 0 : 
+/*
+			wa_dt[2][4:0] == reg_addr[5] ? reg_wdata[5] :
+			wa_dt[2][4:0] == reg_addr[4] ? reg_wdata[4] :
+			wa_dt[2][4:0] == reg_addr[3] ? reg_wdata[3] :
+			wa_dt[2][4:0] == reg_addr[2] ? reg_wdata[2] :
+			wa_dt[2][4:0] == reg_addr[1] ? reg_wdata[1] :
+			wa_dt[2][4:0] == reg_addr[0] ? reg_wdata[0] :
+*/
+			regfile[wa_dt[2]];
 
 	//exec
-	assign board0 = board & wa_std_board[0] & mask;
-	assign board1 = board & dd_board[0] & wa_std_board[1] & mask;
-	assign board2 = board & dd_board[0] & dd_board[1] & wa_std_board[2] & mask; 
+	assign dep_ok[0] = (board & wa_std_board[0] & mask) == 0;
+	assign dep_ok[1] =
+			((board | dd_board[0]) & wa_std_board[1] & mask) == 0 &&
+			(wa_std_board[0] & dd_board[1] & mask) == 0; // 先に書き込むの防止
+	assign dep_ok[2] =
+			((board | dd_board[0] | dd_board[1]) & wa_std_board[2] & mask) == 0 &&
+			((wa_std_board[0] | wa_std_board[1]) & dd_board[2] & mask) == 0;
 	assign u1_get =
 			b_is_hazard ? 3'b000 :
-			board0 == 0 && (wa_mod[0] & mod_u1) != 0 && (wa_latency[0] & u1_is_busy) == 0 &&
-					~(u3_get[0] && wa_ope[0][1:0] == 2'b01) ? 3'b001 :
+			dep_ok[0] && (wa_mod[0] & mod_u1) != 0 && (wa_latency[0] & u1_is_busy) == 0 && ~u3_get[0] ? 3'b001 :
 			(wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0) ? 3'b000 :
-			board1 == 0 && (wa_mod[1] & mod_u1) != 0 && (wa_latency[1] & u1_is_busy) == 0 &&
-					~(u3_get[1] && wa_ope[1][1:0] == 2'b01) ? 3'b010 :
+			dep_ok[1] && (wa_mod[1] & mod_u1) != 0 && (wa_latency[1] & u1_is_busy) == 0 && ~u3_get[1] ? 3'b010 :
 			(wa_ope[1][1:0] == 2'b10 && wa_ope[0][5:3] != 0) ? 3'b000 :
-			board2 == 0 && (wa_mod[2] & mod_u1) != 0 && (wa_latency[2] & u1_is_busy) == 0 &&
-					~(u3_get[2] && wa_ope[2][1:0] == 2'b01) ? 3'b100 : 3'b000;
+			dep_ok[2] && (wa_mod[2] & mod_u1) != 0 && (wa_latency[2] & u1_is_busy) == 0 && ~u3_get[2] ? 3'b100 :
+			3'b000;
 
 	assign u2_get = 
 			b_is_hazard ? 3'b000 : 
-			board0 == 0 && (wa_mod[0] & mod_u2) != 0 && (wa_latency[0] & u2_is_busy) == 0 && 
-					~(u1_get[0] && wa_ope[0][1:0] == 2'b00) ? 3'b001 :
-			(wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0) ? 3'b000 :
-			board1 == 0 && (wa_mod[1] & mod_u2) != 0 && (wa_latency[1] & u2_is_busy) == 0 && 
-					~(u1_get[1] && wa_ope[1][1:0] == 2'b00) ? 3'b010 :
-			(wa_ope[1][1:0] == 2'b10 && wa_ope[0][5:3] != 0) ? 3'b000 :
-			board2 == 0 && (wa_mod[2] & mod_u2) != 0 && (wa_latency[2] & u2_is_busy) == 0 &&
-					~(u1_get[2] && wa_ope[2][1:0] == 2'b00) ? 3'b100 : 3'b000;
+			dep_ok[0] && (wa_mod[0] & mod_u2) != 0 && (wa_latency[0] & u2_is_busy) == 0 && ~u1_get[0] ? 3'b001 :
+			(wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0) || wa_mod[0] == mod_u2 ? 3'b000 :
+			dep_ok[1] && (wa_mod[1] & mod_u2) != 0 && (wa_latency[1] & u2_is_busy) == 0 && ~u1_get[1] ? 3'b010 :
+			(wa_ope[1][1:0] == 2'b10 && wa_ope[0][5:3] != 0) || wa_mod[1] == mod_u2 ? 3'b000 :
+			dep_ok[2] && (wa_mod[2] & mod_u2) != 0 && (wa_latency[2] & u2_is_busy) == 0 && ~u1_get[2] ? 3'b100 :
+			3'b000;
 
 	assign u3_get = 
 			b_is_hazard ? 3'b000 : 
-			board0 == 0 && (wa_mod[0] & mod_u3) != 0 && (wa_latency[0] & u3_is_busy) == 0 ? 3'b001 :
+			dep_ok[0] && (wa_mod[0] & mod_u3) != 0 && (wa_latency[0] & u3_is_busy) == 0 ? 3'b001 :
 			(wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0) ? 3'b000 :
-			board1 == 0 && (wa_mod[1] & mod_u3) != 0 && (wa_latency[1] & u3_is_busy) == 0 ? 3'b010 :
+			dep_ok[1] && (wa_mod[1] & mod_u3) != 0 && (wa_latency[1] & u3_is_busy) == 0 ? 3'b010 :
 			(wa_ope[1][1:0] == 2'b10 && wa_ope[0][5:3] != 0) ? 3'b000 :
-			board2 == 0 && (wa_mod[2] & mod_u3) != 0 && (wa_latency[2] & u3_is_busy) == 0 ? 3'b100 : 3'b000;
+			dep_ok[2] && (wa_mod[2] & mod_u3) != 0 && (wa_latency[2] & u3_is_busy) == 0 ? 3'b100 : 3'b000;
 
 	assign issued = u1_get | u2_get | u3_get;
 	assign dd_board[0] = 1 << wa_dd[0];
@@ -350,25 +424,33 @@ module cpu3(
 			de_tmp_pc <= wa_is_busy && ~wa_was_busy ? if_pc : de_tmp_pc;
 			de_tmp_instr[0] <= wa_is_busy && ~wa_was_busy ? i_rdata[63:32] : de_tmp_instr[0];
 			de_tmp_instr[1] <= wa_is_busy && ~wa_was_busy ? i_rdata[31:0] : de_tmp_instr[1];
-			de_tmp_is_en[0] <= b_is_hazard ? 0 :
+			de_tmp_is_en[0] <= b_is_hazard || de_is_j[0] || de_is_j[1] ? 0 :
 												 wa_is_busy && ~wa_was_busy ? if_is_en[0] : de_tmp_is_en[0];
-			de_tmp_is_en[1] <= b_is_hazard ? 0 :
+			de_tmp_is_en[1] <= b_is_hazard || de_is_j[0] || de_is_j[1] ? 0 :
 												 wa_is_busy && ~wa_was_busy ? if_is_en[0] : de_tmp_is_en[1];
 			de_tmp_used <= wa_is_busy;
 
 			de_pc <= wa_is_busy ? de_pc :
 							 de_tmp_used ? de_tmp_pc : if_pc;
-			de_instr[0] <= wa_is_busy ? de_instr[0] :
-										 de_tmp_used ? de_tmp_instr[0] : i_rdata[63:32];
-			de_instr[1] <= wa_is_busy ? de_instr[1] :
-										 de_tmp_used ? de_tmp_instr[1] : i_rdata[31:0];
+			de_instr[0] <= 
+					wa_is_busy ? de_instr[0] :
+					de_tmp_used ? de_tmp_instr[0] : i_rdata[63:32];
+			de_instr[1] <= 
+					wa_is_busy ? de_instr[1] :
+					de_tmp_used ? de_tmp_instr[1] : i_rdata[31:0];
 			// enなのはifステージでenかつ制御ハザードが起きない
-			de_is_en[0] <= b_is_hazard ? 0 :
-										 wa_is_busy ? de_is_en[0] :
-										 de_tmp_used ? de_tmp_is_en[0] : if_is_en[0];
-			de_is_en[1] <= b_is_hazard ? 0 :
-										 wa_is_busy ? de_is_en[1] :
-										 de_tmp_used ? de_tmp_is_en[1] : if_is_en[1];
+			de_is_en[0] <= 
+					b_is_hazard ? 0 :
+					wa_is_busy ? de_is_en[0] :
+					de_is_j[0] || de_is_j[1] ? 0 :
+					de_tmp_used ? de_tmp_is_en[0] : if_is_en[0];
+			de_is_en[1] <= 
+					b_is_hazard ? 0 :
+					wa_is_busy ? de_is_en[1] :
+					de_is_j[0] || de_is_j[1] ? 0 :
+					de_tmp_used ? (de_tmp_is_en[1] &&
+							!(de_tmp_instr[0][31:30] == 2'b00 && de_tmp_instr[0][27:26] == 2'b10)) :
+					if_is_en[1] && !(i_rdata[63:62] == 2'b00 && i_rdata[59:58] == 2'b10);
 			//wait
 			wa_was_busy <= wa_is_busy;
 			wa_data[0] <= b_is_hazard ? 0 : 
@@ -386,6 +468,7 @@ module cpu3(
 										~wa_exist[0] && ~wa_exist[1] &&	(wa_exist[2] ^ de_is_en[0]) && de_is_en[1] ? de_data[1] : 0;
 			wa_data[2] <= b_is_hazard ? 0 : 
 										wa_exist[0] && wa_exist[1] && wa_exist[2] ? wa_data[2] :
+										wa_is_busy ? 0 :
 										wa_exist[0] && wa_exist[1] &&	~wa_exist[2] && de_is_en[0] ? de_data[0] :
 										(wa_exist[0] ^ wa_exist[1]) && wa_exist[2] && de_is_en[0] ? de_data[0] :
 										wa_exist[0] && wa_exist[1] && ~wa_exist[2] && ~de_is_en[0] && de_is_en[1] ? de_data[1] :
@@ -406,6 +489,7 @@ module cpu3(
 										~wa_exist[0] && ~wa_exist[1] &&	(wa_exist[2] ^ de_is_en[0]) && de_is_en[1] ? de_is_en[1] : 0;
 			wa_is_en[2] <= b_is_hazard ? 0 :
 										wa_exist[0] && wa_exist[1] && wa_exist[2] ? wa_is_en[2] :
+										wa_is_busy ? 0 :
 										wa_exist[0] && wa_exist[1] &&	~wa_exist[2] && de_is_en[0] ? de_is_en[0] :
 										(wa_exist[0] ^ wa_exist[1]) && wa_exist[2] && de_is_en[0] ? de_is_en[0] :
 										wa_exist[0] && wa_exist[1] && ~wa_exist[2] && ~de_is_en[0] && de_is_en[1] ? de_is_en[1] :
@@ -499,6 +583,27 @@ module cpu3(
 			end
 
 			//write back
+	/*  クロック上がるかも？　forwardingかboard更新回りなおすかする必要あり
+			reg_addr[0] <= alu_reg_addr;
+			reg_addr[1] <= alu2_reg_addr;
+			reg_addr[2] <= io_reg_addr;
+			reg_addr[3] <= mem_reg_addr;
+			reg_addr[4] <= fpu_reg_addr;
+			reg_addr[5] <= fpu2_reg_addr;
+			reg_wdata[0] <= alu_dd_val;
+			reg_wdata[1] <= alu2_dd_val;
+			reg_wdata[2] <= io_dd_val;
+			reg_wdata[3] <= mem_dd_val;
+			reg_wdata[4] <= fpu_dd_val;
+			reg_wdata[5] <= fpu2_dd_val;
+			regfile[reg_addr[0]] <= reg_wdata[0];
+			regfile[reg_addr[1]] <= reg_wdata[1];
+			regfile[reg_addr[2]] <= reg_wdata[2];
+			regfile[reg_addr[3]] <= reg_wdata[3];
+			regfile[reg_addr[4]] <= reg_wdata[4];
+			regfile[reg_addr[5]] <= reg_wdata[5];
+	*/
+
 			regfile[alu_reg_addr] <= alu_dd_val;
 			regfile[alu2_reg_addr] <= alu2_dd_val;
 			regfile[io_reg_addr] <= io_dd_val;
