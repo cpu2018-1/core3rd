@@ -12,6 +12,10 @@ module unit1(
 		output wire [6:0] is_busy,
 		output reg b_is_hazard,
 		output reg [13:0] b_addr,
+		output reg b_is_b_ope,
+		output reg b_is_branch,
+		output reg [13:0] b_w_pc,
+
 		output reg [5:0] alu_addr,
 		output reg [31:0] alu_dd_val,
 		output reg [5:0] fpu_addr,  // 中にFPUモジュール埋め込む場合はwireに直す！
@@ -20,6 +24,8 @@ module unit1(
 	// B or ALU or FPU
 	wire rs_eq_opr;
 	wire rs_lt_opr;
+	wire taken;
+	wire was_branch;
 
 	wire [31:0] ex_imm;
 	wire [31:0] alu_rs;
@@ -33,6 +39,14 @@ module unit1(
 
 	assign rs_eq_opr = $signed(ds_val) == $signed(opr);
 	assign rs_lt_opr = $signed(ds_val) < $signed(opr);
+	assign taken =
+			(ope == 6'b010010 && $signed(ds_val) == $signed(dt_val)) ||
+	    (ope == 6'b011010 && $signed(ds_val) <= $signed(dt_val)) ||
+	    (ope == 6'b110010 && rs_eq_opr) ||
+	    (ope == 6'b111010 && ~rs_eq_opr) ||
+	    (ope == 6'b100010 && (rs_eq_opr || rs_lt_opr)) ||
+	    (ope == 6'b101010 && ~rs_lt_opr);
+	assign was_branch = ctrl[0];
 
 	assign ex_imm = {{16{imm[15]}},imm};
 	assign alu_rs = ds_val;
@@ -55,15 +69,15 @@ module unit1(
 			fpu_dd_val <= 0; //上に同じ
 		end else begin
 
-		b_is_hazard <=
-				(ope == 6'b010010 && $signed(ds_val) == $signed(dt_val)) ||
-				(ope == 6'b011010 && $signed(ds_val) <= $signed(dt_val)) ||
-				(ope == 6'b110010 && rs_eq_opr) ||
-				(ope == 6'b111010 && ~rs_eq_opr) ||
-				(ope == 6'b100010 && (rs_eq_opr || rs_lt_opr)) ||
-				(ope == 6'b101010 && ~rs_lt_opr);
-		b_addr <= imm[13:0];
-
+		b_is_hazard <= 
+				ope[2:0] == 3'b110 ||
+				(ope[1:0] == 2'b10 && ope[5:4] != 2'b0 && (taken ^ was_branch));
+		b_addr <= 
+				ope[2:0] == 3'b110 ? ds_val :
+				taken ? imm[13:0] : pc_1;
+		b_is_b_ope <= ope[1:0] == 2'b10 && ope[5:4] != 2'b0;
+		b_is_branch <= taken;
+		b_w_pc <= pc;
 
 			case (ope)
          6'b110000: // LUI

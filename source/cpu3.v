@@ -38,10 +38,23 @@ module cpu3(
 
 	//register {fpr,gpr}
 	reg [31:0] regfile [63:0];
+
+
+	wire [13:0] bp_r_pc;
+	wire bp_is_taken0;
+	wire bp_is_taken1;
+	wire bp_is_b_ope;
+	wire bp_is_branch;
+	wire [13:0] bp_w_pc;
+	bp ubp(clk,bp_r_pc,bp_is_taken0,bp_is_taken1,bp_is_b_ope,bp_is_branch,bp_w_pc);
 	
 	//instruction fetch
 	reg [13:0] if_pc;
 	wire if_is_en [1:0];
+	wire if_is_j [1:0];
+	wire if_is_b [1:0];
+	wire [15:0] if_imm [1:0];
+	reg if_pre_is_j;
 	//decode
 	reg [13:0] de_pc;
 	reg [31:0] de_tmp_instr [1:0];
@@ -103,7 +116,8 @@ module cpu3(
 	wire [5:0] fpu_reg_addr;
 	wire [31:0] fpu_dd_val;
 	unit1 u1(clk,rstn,u1_pc,u1_ope,u1_ds_val,u1_dt_val,u1_dd,u1_imm,u1_opr,u1_ctrl,
-	            u1_is_busy,b_is_hazard,b_addr,alu_reg_addr,alu_dd_val,fpu_reg_addr,fpu_dd_val);
+	            u1_is_busy,b_is_hazard,b_addr,bp_is_b_ope,bp_is_branch,bp_w_pc,
+							alu_reg_addr,alu_dd_val,fpu_reg_addr,fpu_dd_val);
 	// b_hogeがregのとき
 	wire u1_is_b;
 	assign u1_is_b = u1_ope[1:0] == 2'b10 && u1_ope[5:4] != 2'b0;
@@ -155,9 +169,18 @@ module cpu3(
 	assign i_addr = pc[13:1];
 	assign i_en = 1'b1;
 
+	// branch pred
+	assign bp_r_pc = if_pc;
+
 	//if
-	assign if_is_en[0] = ~if_pc[0] && ~b_is_hazard && ~de_is_j[0] && ~de_is_j[1];
-	assign if_is_en[1] = ~b_is_hazard && ~de_is_j[0] && ~de_is_j[1];
+	assign if_is_en[0] = ~if_pc[0] && ~b_is_hazard && ~if_pre_is_j;
+	assign if_is_en[1] = ~b_is_hazard && ~if_pre_is_j;
+	assign if_is_j[0] = i_rdata[63:62] == 2'b00 && i_rdata[59:58] == 2'b10; 
+	assign if_is_j[1] = i_rdata[31:30] == 2'b00 && i_rdata[27:26] == 2'b10;
+	assign if_is_b[0] = i_rdata[63:62] != 2'b00 && i_rdata[59:58] == 2'b10;
+	assign if_is_b[1] = i_rdata[31:30] != 2'b00 && i_rdata[27:26] == 2'b10;
+	assign if_imm[0] = i_rdata[47:32];
+	assign if_imm[1] = i_rdata[15:0];
 
 	//de
 	assign de_is_j[0] = de_is_en[0] && de_instr[0][31:30] == 2'b00 && de_instr[0][27:26] == 2'b10;
@@ -364,6 +387,7 @@ module cpu3(
 			pc <= 0;
 			state <= st_begin;
 			if_pc <= 0;
+			if_pre_is_j <= 0;
 			de_pc <= 0;
 			de_tmp_used <= 0;
 			de_tmp_pc <= 0;
@@ -403,22 +427,23 @@ module cpu3(
 			state <= st_normal;
 		end else if(state == st_normal) begin
 			pc <= b_is_hazard ? b_addr :
-						de_is_j[0] ? de_imm[0][13:0] :
-						de_is_j[1] ? de_imm[1][13:0] :
+						if_is_j[0] || (if_is_b[0] & bp_is_taken0) ? if_imm[0][13:0] :
+						if_is_j[1] || (if_is_b[1] & bp_is_taken1) ? if_imm[1][13:0] :
 						wa_is_busy ? pc :
 						{pc[13:1]+1,1'b0};
 
 
 			// instruction fetch
 			if_pc <= pc;
+			if_pre_is_j <= if_is_j[0] | if_is_j[1] | (if_is_b[0] & bp_is_taken0) | (if_is_b[1] & bp_is_taken1);
 			//decode
 			de_tmp_pc <= wa_is_busy && ~wa_was_busy ? if_pc : de_tmp_pc;
 			de_tmp_instr[0] <= wa_is_busy && ~wa_was_busy ? i_rdata[63:32] : de_tmp_instr[0];
 			de_tmp_instr[1] <= wa_is_busy && ~wa_was_busy ? i_rdata[31:0] : de_tmp_instr[1];
-			de_tmp_is_en[0] <= b_is_hazard || de_is_j[0] || de_is_j[1] ? 0 :
+			de_tmp_is_en[0] <= b_is_hazard ? 0 :
 												 wa_is_busy && ~wa_was_busy ? if_is_en[0] : de_tmp_is_en[0];
-			de_tmp_is_en[1] <= b_is_hazard || de_is_j[0] || de_is_j[1] ? 0 :
-												 wa_is_busy && ~wa_was_busy ? if_is_en[0] : de_tmp_is_en[1];
+			de_tmp_is_en[1] <= b_is_hazard || if_is_j[0] || (if_is_b[0] & bp_is_taken0) ? 0 :
+												 wa_is_busy && ~wa_was_busy ? if_is_en[1] : de_tmp_is_en[1];
 			de_tmp_used <= wa_is_busy;
 
 			de_pc <= wa_is_busy ? de_pc :
@@ -433,15 +458,11 @@ module cpu3(
 			de_is_en[0] <= 
 					b_is_hazard ? 0 :
 					wa_is_busy ? de_is_en[0] :
-					de_is_j[0] || de_is_j[1] ? 0 :
 					de_tmp_used ? de_tmp_is_en[0] : if_is_en[0];
 			de_is_en[1] <= 
 					b_is_hazard ? 0 :
 					wa_is_busy ? de_is_en[1] :
-					de_is_j[0] || de_is_j[1] ? 0 :
-					de_tmp_used ? (de_tmp_is_en[1] &&
-							!(de_tmp_instr[0][31:30] == 2'b00 && de_tmp_instr[0][27:26] == 2'b10)) :
-					if_is_en[1] && !(i_rdata[63:62] == 2'b00 && i_rdata[59:58] == 2'b10);
+					de_tmp_used ? de_tmp_is_en[1] :	(if_is_en[1] & ~if_is_j[0] & ~(if_is_b[0] & bp_is_taken0));
 			//wait
 			wa_was_busy <= wa_is_busy;
 
