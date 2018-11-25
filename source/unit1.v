@@ -10,8 +10,8 @@ module unit1(
 		input wire [4:0] opr,
 		input wire [3:0] ctrl,
 		output wire [6:0] is_busy,
-		output wire b_is_hazard,
-		output wire [13:0] b_addr,
+		output reg b_is_hazard,
+		output reg [13:0] b_addr,
 		output reg [5:0] alu_addr,
 		output reg [31:0] alu_dd_val,
 		output reg [5:0] fpu_addr,  // 中にFPUモジュール埋め込む場合はwireに直す！
@@ -46,14 +46,6 @@ module unit1(
 
 	assign is_busy = 0; /////// FPUと調整
 
-	assign b_is_hazard =
-		(ope == 6'b010010 && $signed(ds_val) == $signed(dt_val)) ||
-		(ope == 6'b011010 && $signed(ds_val) <= $signed(dt_val)) ||
-		(ope == 6'b110010 && rs_eq_opr) ||
-		(ope == 6'b111010 && ~rs_eq_opr) ||
-		(ope == 6'b100010 && (rs_eq_opr || rs_lt_opr)) ||
-		(ope == 6'b101010 && ~rs_lt_opr);
-	assign b_addr = imm[13:0];
 
 	always @(posedge clk) begin
 		if (~rstn) begin
@@ -62,6 +54,17 @@ module unit1(
 			fpu_addr <= 0; // fpu組み込んだらそっちで初期化
 			fpu_dd_val <= 0; //上に同じ
 		end else begin
+
+		b_is_hazard <=
+				(ope == 6'b010010 && $signed(ds_val) == $signed(dt_val)) ||
+				(ope == 6'b011010 && $signed(ds_val) <= $signed(dt_val)) ||
+				(ope == 6'b110010 && rs_eq_opr) ||
+				(ope == 6'b111010 && ~rs_eq_opr) ||
+				(ope == 6'b100010 && (rs_eq_opr || rs_lt_opr)) ||
+				(ope == 6'b101010 && ~rs_lt_opr);
+		b_addr <= imm[13:0];
+
+
 			case (ope)
          6'b110000: // LUI
            begin
