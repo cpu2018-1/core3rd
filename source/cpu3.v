@@ -81,9 +81,9 @@ module cpu3(
 	wire wa_is_busy;
 	reg wa_was_busy;
 	wire wa_exist [2:0];
-	wire [4:0] wa_sig0;
-	wire [3:0] wa_sig1;
-	wire [2:0] wa_sig2;
+	wire [5:0] wa_sig0;
+	wire [4:0] wa_sig1;
+	wire [3:0] wa_sig2;
 	//exec
 		// unit1
 	wire [2:0] u1_get;
@@ -261,28 +261,28 @@ module cpu3(
 	assign wa_exist[2] = wa_is_en[2] && ~issued[2];
 
   assign wa_sig0 = 
-			b_is_hazard ? 0 :
-			wa_exist[0] ? 5'b10000 :
-			wa_exist[1] ? 5'b01000 :
-			wa_exist[2] ? 5'b00100 :
-			de_is_en[0] ? 5'b00010 :
-			de_is_en[1] ? 5'b00001 : 0;
+			b_is_hazard ? 6'b000001 :
+			wa_exist[0] ? 6'b100000 :
+			wa_exist[1] ? 6'b010000 :
+			wa_exist[2] ? 6'b001000 :
+			de_is_en[0] ? 6'b000100 :
+			de_is_en[1] ? 6'b000010 : 6'b000001;
 
 	assign wa_sig1 = 
-			b_is_hazard ? 0 :
-			wa_exist[0] && wa_exist[1] ? 4'b1000 :
-			(wa_exist[0] ^ wa_exist[1]) &&  wa_exist[2] ? 4'b0100 :
-			(wa_exist[0] ^ wa_exist[1]) && ~wa_exist[2] && de_is_en[0] ? 4'b0010 :
-			~wa_exist[0] && ~wa_exist[1] && wa_exist[2] &&  de_is_en[0] ? 4'b0010 :
-			(wa_exist[0] ^ wa_exist[1]) && ~wa_exist[2] && ~de_is_en[0] && de_is_en[1] ? 4'b0001 :
-			~wa_exist[0] && ~wa_exist[1] && (wa_exist[2] ^ de_is_en[0]) && de_is_en[1] ? 4'b0001 : 0;
+			b_is_hazard ? 5'b00001 :
+			wa_exist[0] && wa_exist[1] ? 5'b10000 :
+			(wa_exist[0] ^ wa_exist[1]) &&  wa_exist[2] ? 5'b01000 :
+			(wa_exist[0] ^ wa_exist[1]) && ~wa_exist[2] && de_is_en[0] ? 5'b00100 :
+			~wa_exist[0] && ~wa_exist[1] && wa_exist[2] &&  de_is_en[0] ? 5'b00100 :
+			(wa_exist[0] ^ wa_exist[1]) && ~wa_exist[2] && ~de_is_en[0] && de_is_en[1] ? 5'b00010 :
+			~wa_exist[0] && ~wa_exist[1] && (wa_exist[2] ^ de_is_en[0]) && de_is_en[1] ? 5'b00010 : 5'b00001;
 
 	assign wa_sig2 = 
-			b_is_hazard ? 0 :
-			wa_exist[0] && wa_exist[1] && wa_exist[2] ? 3'b100 :
+			b_is_hazard ? 4'b0001 :
+			wa_exist[0] && wa_exist[1] && wa_exist[2] ? 4'b1000 :
 			wa_is_busy ? 0 : // de_data[0]が来ることはない
-			(wa_exist[0] ^ wa_exist[1]) && de_is_en[0] && de_is_en[1] ? 3'b001 :
-			~wa_exist[0] && ~wa_exist[1] && wa_exist[2] && de_is_en[0] && de_is_en[1] ? 3'b001 : 0;
+			(wa_exist[0] ^ wa_exist[1]) && de_is_en[0] && de_is_en[1] ? 4'b0010 :
+			~wa_exist[0] && ~wa_exist[1] && wa_exist[2] && de_is_en[0] && de_is_en[1] ? 4'b0010 : 4'b0001;
 
 
 	assign reg_ds_data[0] = 
@@ -481,57 +481,57 @@ module cpu3(
 					if_is_en[1] && !(i_rdata[63:62] == 2'b00 && i_rdata[59:58] == 2'b10);
 			//wait
 			wa_was_busy <= wa_is_busy;
-			if(wa_sig0[4]) begin
-				wa_data[0] <= wa_data[0];
-				wa_is_en[0] <= wa_is_en[0];
-			end else if(wa_sig0[3]) begin
-				wa_data[0] <= wa_data[1];
-				wa_is_en[0] <= wa_is_en[1];
-			end else if(wa_sig0[2]) begin
-				wa_data[0] <= wa_data[2];
-				wa_is_en[0] <= wa_is_en[2];
-			end else if(wa_sig0[1]) begin
-				wa_data[0] <= de_data[0];
-				wa_is_en[0] <= de_is_en[0];
-			end else if(wa_sig0[0]) begin
-				wa_data[0] <= de_data[1];
-				wa_is_en[0] <= de_is_en[1];
-			end else begin
-				wa_data[0] <= 0;
-				wa_is_en[0] <= 0;
-			end
 
-			if(wa_sig1[3]) begin
-				wa_data[1] <= wa_data[1];
-				wa_is_en[1] <= wa_is_en[1];
-			end else if(wa_sig1[2]) begin
-				wa_data[1] <= wa_data[2];
-				wa_is_en[1] <= wa_is_en[2];
-			end else if(wa_sig1[1]) begin
-				wa_data[1] <= de_data[0];
-				wa_is_en[1] <= de_is_en[0];
-			end else if(wa_sig1[0]) begin
-				wa_data[1] <= de_data[1];
-				wa_is_en[1] <= de_is_en[1];
-			end else begin
-				wa_data[1] <= 0;
-				wa_is_en[1] <= 0;
-			end
+			(* parallel_case *)
+			casex (wa_sig0)
+				6'b1xxxxx : wa_data[0] <= wa_data[0];
+				6'bx1xxxx : wa_data[0] <= wa_data[1];
+				6'bxx1xxx : wa_data[0] <= wa_data[2];
+				6'bxxx1xx : wa_data[0] <= de_data[0];
+				6'bxxxx1x : wa_data[0] <= de_data[1];
+				6'bxxxxx1 : wa_data[0] <= 0;
+			endcase
+			(* parallel_case *)
+			casex (wa_sig0)
+				6'b1xxxxx : wa_is_en[0] <= wa_is_en[0];
+				6'bx1xxxx : wa_is_en[0] <= wa_is_en[1];
+				6'bxx1xxx : wa_is_en[0] <= wa_is_en[2];
+				6'bxxx1xx : wa_is_en[0] <= de_is_en[0];
+				6'bxxxx1x : wa_is_en[0] <= de_is_en[1];
+				6'bxxxxx1 : wa_is_en[0] <= 0;
+			endcase
 
-			if(wa_sig2[2]) begin
-				wa_data[2] <= wa_data[2];
-				wa_is_en[2] <= wa_is_en[2];
-			end else if(wa_sig2[1]) begin
-				wa_data[2] <= de_data[0];
-				wa_is_en[2] <= de_is_en[0];
-			end else if(wa_sig2[0]) begin
-				wa_data[2] <= de_data[1];
-				wa_is_en[2] <= de_is_en[1];
-			end else begin
-				wa_data[2] <= 0;
-				wa_is_en[2] <= 0;
-			end
-
+			(* parallel_case *)
+			casex (wa_sig1)
+				5'b1xxxx : wa_data[1] <= wa_data[1];
+				5'bx1xxx : wa_data[1] <= wa_data[2];
+				5'bxx1xx : wa_data[1] <= de_data[0];
+				5'bxxx1x : wa_data[1] <= de_data[1];
+				5'bxxxx1 : wa_data[1] <= 0;
+			endcase
+			(* parallel_case *)
+			casex (wa_sig1)
+				5'b1xxxx : wa_is_en[1] <= wa_is_en[1];
+				5'bx1xxx : wa_is_en[1] <= wa_is_en[2];
+				5'bxx1xx : wa_is_en[1] <= de_is_en[0];
+				5'bxxx1x : wa_is_en[1] <= de_is_en[1];
+				5'bxxxx1 : wa_is_en[1] <= 0;
+			endcase
+			
+			(* parallel_case *)
+			casex (wa_sig2)
+				4'b1xxx : wa_data[2] <= wa_data[2];
+				4'bx1xx : wa_data[2] <= de_data[0];
+				4'bxx1x : wa_data[2] <= de_data[1];
+				4'bxxx1 : wa_data[2] <= 0;
+			endcase
+			(* parallel_case *)
+			casex (wa_sig2)
+				4'b1xxx : wa_is_en[2] <= wa_is_en[2];
+				4'bx1xx : wa_is_en[2] <= de_is_en[0];
+				4'bxx1x : wa_is_en[2] <= de_is_en[1];
+				4'bxxx1 : wa_is_en[2] <= 0;
+			endcase
 
 			board <= (board & ~(1 << alu_reg_addr) & ~(1 << alu2_reg_addr) & ~(1 << io_reg_addr) & 
 									~(1 << mem_reg_addr) & ~(1 << fpu_reg_addr) & ~(1 << fpu2_reg_addr)) |
