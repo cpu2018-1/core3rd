@@ -81,6 +81,9 @@ module cpu3(
 	wire wa_is_busy;
 	reg wa_was_busy;
 	wire wa_exist [2:0];
+	wire [4:0] wa_sig0;
+	wire [3:0] wa_sig1;
+	wire [2:0] wa_sig2;
 	//exec
 		// unit1
 	wire [2:0] u1_get;
@@ -256,6 +259,31 @@ module cpu3(
 	assign wa_exist[0] = wa_is_en[0] && ~issued[0];
 	assign wa_exist[1] = wa_is_en[1] && ~issued[1];
 	assign wa_exist[2] = wa_is_en[2] && ~issued[2];
+
+  assign wa_sig0 = 
+			b_is_hazard ? 0 :
+			wa_exist[0] ? 5'b10000 :
+			wa_exist[1] ? 5'b01000 :
+			wa_exist[2] ? 5'b00100 :
+			de_is_en[0] ? 5'b00010 :
+			de_is_en[1] ? 5'b00001 : 0;
+
+	assign wa_sig1 = 
+			b_is_hazard ? 0 :
+			wa_exist[0] && wa_exist[1] ? 4'b1000 :
+			(wa_exist[0] ^ wa_exist[1]) &&  wa_exist[2] ? 4'b0100 :
+			(wa_exist[0] ^ wa_exist[1]) && ~wa_exist[2] && de_is_en[0] ? 4'b0010 :
+			~wa_exist[0] && ~wa_exist[1] && wa_exist[2] &&  de_is_en[0] ? 4'b0010 :
+			(wa_exist[0] ^ wa_exist[1]) && ~wa_exist[2] && ~de_is_en[0] && de_is_en[1] ? 4'b0001 :
+			~wa_exist[0] && ~wa_exist[1] && (wa_exist[2] ^ de_is_en[0]) && de_is_en[1] ? 4'b0001 : 0;
+
+	assign wa_sig2 = 
+			b_is_hazard ? 0 :
+			wa_exist[0] && wa_exist[1] && wa_exist[2] ? 3'b100 :
+			wa_is_busy ? 0 : // de_data[0]が来ることはない
+			(wa_exist[0] ^ wa_exist[1]) && de_is_en[0] && de_is_en[1] ? 3'b001 :
+			~wa_exist[0] && ~wa_exist[1] && wa_exist[2] && de_is_en[0] && de_is_en[1] ? 3'b001 : 0;
+
 
 	assign reg_ds_data[0] = 
 			wa_ds[0][4:0] == 0 ? 0 : 
@@ -453,48 +481,56 @@ module cpu3(
 					if_is_en[1] && !(i_rdata[63:62] == 2'b00 && i_rdata[59:58] == 2'b10);
 			//wait
 			wa_was_busy <= wa_is_busy;
-			wa_data[0] <= b_is_hazard ? 0 : 
-										wa_exist[0] ? wa_data[0] :
-										wa_exist[1] ? wa_data[1] :
-										wa_exist[2] ? wa_data[2] :
-										de_is_en[0] ? de_data[0] :
-										de_is_en[1] ? de_data[1] : 0;
-			wa_data[1] <= b_is_hazard ? 0 :
-										wa_exist[0] && wa_exist[1] ? wa_data[1] :
-										(wa_exist[0] ^ wa_exist[1]) &&	wa_exist[2] ? wa_data[2] :
-										(wa_exist[0] ^ wa_exist[1]) && ~wa_exist[2] && de_is_en[0] ? de_data[0] :
-										~wa_exist[0] && ~wa_exist[1] && wa_exist[2] && 	de_is_en[0] ? de_data[0] :
-										(wa_exist[0] ^ wa_exist[1]) && ~wa_exist[2] && ~de_is_en[0] && de_is_en[1] ? de_data[1] :
-										~wa_exist[0] && ~wa_exist[1] &&	(wa_exist[2] ^ de_is_en[0]) && de_is_en[1] ? de_data[1] : 0;
-			wa_data[2] <= b_is_hazard ? 0 : 
-										wa_exist[0] && wa_exist[1] && wa_exist[2] ? wa_data[2] :
-										wa_is_busy ? 0 :
-										wa_exist[0] && wa_exist[1] &&	~wa_exist[2] && de_is_en[0] ? de_data[0] :
-										(wa_exist[0] ^ wa_exist[1]) && wa_exist[2] && de_is_en[0] ? de_data[0] :
-										wa_exist[0] && wa_exist[1] && ~wa_exist[2] && ~de_is_en[0] && de_is_en[1] ? de_data[1] :
-										(wa_exist[0] ^ wa_exist[1]) && (wa_exist[2] ^ de_is_en[0]) && de_is_en[1] ? de_data[1] :
-										~wa_exist[0] && ~wa_exist[1] &&	wa_exist[2] && de_is_en[0] && de_is_en[1] ? de_data[1] : 0;
-			wa_is_en[0] <= b_is_hazard ? 0 :
-										wa_exist[0] ? wa_is_en[0] :
-										wa_exist[1] ? wa_is_en[1] :
-										wa_exist[2] ? wa_is_en[2] :
-										de_is_en[0] ? de_is_en[0] :
-										de_is_en[1] ? de_is_en[1] : 0;
-			wa_is_en[1] <= b_is_hazard ? 0 :
-										wa_exist[0] && wa_exist[1] ? wa_is_en[1] :
-										(wa_exist[0] ^ wa_exist[1]) &&	wa_exist[2] ? wa_is_en[2] :
-										(wa_exist[0] ^ wa_exist[1]) && ~wa_exist[2] && de_is_en[0] ? de_is_en[0] :
-										~wa_exist[0] && ~wa_exist[1] && wa_exist[2] && 	de_is_en[0] ? de_is_en[0] :
-										(wa_exist[0] ^ wa_exist[1]) && ~wa_exist[2] && ~de_is_en[0] && de_is_en[1] ? de_is_en[1] :
-										~wa_exist[0] && ~wa_exist[1] &&	(wa_exist[2] ^ de_is_en[0]) && de_is_en[1] ? de_is_en[1] : 0;
-			wa_is_en[2] <= b_is_hazard ? 0 :
-										wa_exist[0] && wa_exist[1] && wa_exist[2] ? wa_is_en[2] :
-										wa_is_busy ? 0 :
-										wa_exist[0] && wa_exist[1] &&	~wa_exist[2] && de_is_en[0] ? de_is_en[0] :
-										(wa_exist[0] ^ wa_exist[1]) && wa_exist[2] && de_is_en[0] ? de_is_en[0] :
-										wa_exist[0] && wa_exist[1] && ~wa_exist[2] && ~de_is_en[0] && de_is_en[1] ? de_is_en[1] :
-										(wa_exist[0] ^ wa_exist[1]) && (wa_exist[2] ^ de_is_en[0]) && de_is_en[1] ? de_is_en[1] :
-										~wa_exist[0] && ~wa_exist[1] &&	wa_exist[2] && de_is_en[0] && de_is_en[1] ? de_is_en[1] : 0;
+			if(wa_sig0[4]) begin
+				wa_data[0] <= wa_data[0];
+				wa_is_en[0] <= wa_is_en[0];
+			end else if(wa_sig0[3]) begin
+				wa_data[0] <= wa_data[1];
+				wa_is_en[0] <= wa_is_en[1];
+			end else if(wa_sig0[2]) begin
+				wa_data[0] <= wa_data[2];
+				wa_is_en[0] <= wa_is_en[2];
+			end else if(wa_sig0[1]) begin
+				wa_data[0] <= de_data[0];
+				wa_is_en[0] <= de_is_en[0];
+			end else if(wa_sig0[0]) begin
+				wa_data[0] <= de_data[1];
+				wa_is_en[0] <= de_is_en[1];
+			end else begin
+				wa_data[0] <= 0;
+				wa_is_en[0] <= 0;
+			end
+
+			if(wa_sig1[3]) begin
+				wa_data[1] <= wa_data[1];
+				wa_is_en[1] <= wa_is_en[1];
+			end else if(wa_sig1[2]) begin
+				wa_data[1] <= wa_data[2];
+				wa_is_en[1] <= wa_is_en[2];
+			end else if(wa_sig1[1]) begin
+				wa_data[1] <= de_data[0];
+				wa_is_en[1] <= de_is_en[0];
+			end else if(wa_sig1[0]) begin
+				wa_data[1] <= de_data[1];
+				wa_is_en[1] <= de_is_en[1];
+			end else begin
+				wa_data[1] <= 0;
+				wa_is_en[1] <= 0;
+			end
+
+			if(wa_sig2[2]) begin
+				wa_data[2] <= wa_data[2];
+				wa_is_en[2] <= wa_is_en[2];
+			end else if(wa_sig2[1]) begin
+				wa_data[2] <= de_data[0];
+				wa_is_en[2] <= de_is_en[0];
+			end else if(wa_sig2[0]) begin
+				wa_data[2] <= de_data[1];
+				wa_is_en[2] <= de_is_en[1];
+			end else begin
+				wa_data[2] <= 0;
+				wa_is_en[2] <= 0;
+			end
 
 
 			board <= (board & ~(1 << alu_reg_addr) & ~(1 << alu2_reg_addr) & ~(1 << io_reg_addr) & 
