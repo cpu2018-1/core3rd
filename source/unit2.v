@@ -49,9 +49,11 @@ module unit2(
 	reg m3_is_write;
 	reg [31:0] m3_rdata;
 
-	reg io_state;
+	reg [1:0] io_state;
 	reg io_is_in;
 	reg [5:0] io_tmp_addr;
+	reg [7:0] io_tmp_data;
+	wire io_busy_cond;
 
 	assign ex_imm = {{16{imm[15]}},imm};
 	assign alu_rs = ds_val;
@@ -62,7 +64,8 @@ module unit2(
 	assign srl = alu_rs >> alu_rt_imm[4:0];
 	assign sra = alu_rs >>> alu_rt_imm[4:0];
 
-	assign is_busy = {6'b0,io_state == 1 || ope[2:0] == 3'b011};
+	assign io_busy_cond = io_state != 0 || ope[2:0] == 3'b011;
+	assign is_busy = {6'b0,io_busy_cond};
 	
 	assign d_addr = m1_addr;
 	assign d_wdata = m1_wdata;
@@ -180,25 +183,35 @@ module unit2(
 			io_addr <= 0;
 			io_is_in <= ope[3];
 			io_tmp_addr <= dd;
-			if (ope[3]) begin // IN
+			io_tmp_data <= ds_val[7:0];
+			io_state <= 1;
+		end else if (io_state == 1) begin
+			io_addr <= 0;
+			if (io_is_in) begin // IN
 				io_in_rdy <= 1;
 			end else begin // OUT
-				io_out_data <= ds_val[7:0];
+				io_out_data <= io_tmp_data;
 				io_out_vld <= 1;
 			end
-			io_state <= 1;
-		end else if (io_state == 1 && ((io_is_in && io_in_vld) || (~io_is_in && io_out_rdy))) begin
+			io_state <= 2;
+		end else if (io_state == 2 && ((io_is_in && io_in_vld) || (~io_is_in && io_out_rdy))) begin
 			if(io_is_in) begin
 				io_in_rdy <= 0;
-				io_addr <= io_tmp_addr;
-				io_dd_val <= {24'b0,io_in_data};
+				io_addr <= 0;
+				io_tmp_data <= io_in_data;
+				io_state <= 3;
 			end else begin
 				io_out_vld <= 0;
 				io_addr <= 0;
+				io_state <= 0;
 			end
+		end else if(state == 3) begin //IN only
+			io_addr <= io_tmp_addr;
+			io_dd_val <= {24'b0,io_tmp_data};
 			io_state <= 0;
 		end else begin
 			io_addr <= 0;
+			io_dd_val <= 0;
 		end
 	end
 endmodule

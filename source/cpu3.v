@@ -59,10 +59,12 @@ module cpu3(
 	reg [13:0] de_pc;
 	reg [31:0] de_tmp_instr [1:0];
 	reg [13:0] de_tmp_pc;
+	reg de_tmp_taken [1:0];
 	reg de_tmp_is_en [1:0];
 	reg de_tmp_used;
 	reg [31:0] de_instr [1:0];
 	reg de_is_en [1:0];
+	reg de_taken [1:0];
 	wire de_is_j [1:0];
 	wire de_is_b [1:0];
 	wire [5:0] de_ope [1:0];
@@ -219,8 +221,14 @@ module cpu3(
 											{de_instr[1][25:21],de_instr[1][10:0]} : de_instr[1][15:0];
 	assign de_opr[0] = de_instr[0][25:21];
 	assign de_opr[1] = de_instr[1][25:21];
-	assign de_ctrl[0] = de_instr[0][1:0] == 2'b01 ? de_instr[0][6:3] : 0; ///////  もう少し複雑
-	assign de_ctrl[1] = de_instr[1][1:0] == 2'b01 ? de_instr[1][6:3] : 0; ////// FLUPの処理
+	assign de_ctrl[0] = 
+			de_instr[0][2:0] == 3'b001 ? de_instr[0][6:3] : 
+			de_instr[0][2:0] == 3'b101 ? 4'b1110 :
+			de_instr[0][1:0] == 2'b10 && de_instr[0][5:4] != 2'b00 ? {4{de_taken}} : 0; 
+	assign de_ctrl[1] = 
+			de_instr[1][2:0] == 3'b001 ? de_instr[1][6:3] :
+			de_instr[1][2:0] == 3'b101 ? 4'b1110 :
+			de_instr[1][1:0] == 2'b10 && de_instr[1][5:4] != 2'b00 ? {4{de_taken}} : 0;
 	assign de_mod[0] = de_instr[0][28:26] == 3'b011 ? mod_u2 :
 										 de_instr[0][28:26] == 3'b111 ? mod_u2 :
 										 de_instr[0][27:26] == 2'b10 ? mod_u1 :
@@ -394,8 +402,10 @@ module cpu3(
 			for(i1=0;i1 < 2; i1=i1+1) begin
 				de_instr[i1] <= 0;
 				de_is_en[i1] <= 0;
+				de_taken[i1] <= 0;
 				de_tmp_instr[i1] <= 0;
 				de_tmp_is_en[i1] <= 0;
+				de_tmp_taken[i1] <= 0;
 			end
 			for(i2=0;i2 < 3; i2=i2+1) begin
 				wa_data[i2] <= 0;
@@ -427,8 +437,8 @@ module cpu3(
 			state <= st_normal;
 		end else if(state == st_normal) begin
 			pc <= b_is_hazard ? b_addr :
-						if_is_j[0] || (if_is_b[0] & bp_is_taken0) ? if_imm[0][13:0] :
-						if_is_j[1] || (if_is_b[1] & bp_is_taken1) ? if_imm[1][13:0] :
+						~wa_was_busy & (if_is_j[0] & (if_is_b[0] & bp_is_taken0)) ? if_imm[0][13:0] :
+						~wa_was_busy & (if_is_j[1] & (if_is_b[1] & bp_is_taken1)) ? if_imm[1][13:0] :
 						wa_is_busy ? pc :
 						{pc[13:1]+1,1'b0};
 
@@ -440,10 +450,14 @@ module cpu3(
 			de_tmp_pc <= wa_is_busy && ~wa_was_busy ? if_pc : de_tmp_pc;
 			de_tmp_instr[0] <= wa_is_busy && ~wa_was_busy ? i_rdata[63:32] : de_tmp_instr[0];
 			de_tmp_instr[1] <= wa_is_busy && ~wa_was_busy ? i_rdata[31:0] : de_tmp_instr[1];
-			de_tmp_is_en[0] <= b_is_hazard ? 0 :
-												 wa_is_busy && ~wa_was_busy ? if_is_en[0] : de_tmp_is_en[0];
-			de_tmp_is_en[1] <= b_is_hazard || if_is_j[0] || (if_is_b[0] & bp_is_taken0) ? 0 :
-												 wa_is_busy && ~wa_was_busy ? if_is_en[1] : de_tmp_is_en[1];
+			de_tmp_is_en[0] <= 
+					b_is_hazard ? 0 :
+					wa_is_busy && ~wa_was_busy ? if_is_en[0] : de_tmp_is_en[0];
+			de_tmp_is_en[1] <= 
+					b_is_hazard || if_is_j[0] || (if_is_b[0] & bp_is_taken0) ? 0 :
+					wa_is_busy && ~wa_was_busy ? if_is_en[1] : de_tmp_is_en[1];
+			de_tmp_taken[0] <= wa_is_busy && ~wa_was_busy ? (if_is_b[0] & bp_is_taken0) : de_tmp_taken[0];
+			de_tmp_taken[1] <= wa_is_busy && ~wa_was_busy ? (if_is_b[1] & bp_is_taken1) : de_tmp_taken[1];
 			de_tmp_used <= wa_is_busy;
 
 			de_pc <= wa_is_busy ? de_pc :
@@ -463,6 +477,13 @@ module cpu3(
 					b_is_hazard ? 0 :
 					wa_is_busy ? de_is_en[1] :
 					de_tmp_used ? de_tmp_is_en[1] :	(if_is_en[1] & ~if_is_j[0] & ~(if_is_b[0] & bp_is_taken0));
+			de_taken[0] <= 
+					wa_is_busy ? de_taken[0] : 
+					de_tmp_used ? de_tmp_taken[0] : (if_is_b[0] & bp_is_taken0);
+			de_taken[1] <= 
+					wa_is_busy ? de_taken[1] :
+					de_tmp_used ? de_tmp_taken[1] : (if_is_b[1] & bp_is_taken1);
+
 			//wait
 			wa_was_busy <= wa_is_busy;
 
