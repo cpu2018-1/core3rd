@@ -26,7 +26,15 @@ module unit3(
 			r_dd_val <= 0;
 		end else begin
 			r_addr <= 0;
-			r_dd_val <= ds_val + dt_val;
+			if(ctrl == 4'b0011) begin
+				r_dd_val <= ds_val + dt_val;
+			end else if(ctrl == 4'b0010) begin
+				r_dd_val <= ds_val << dt_val[3:0];
+			end else if(ctrl == 4'b1010) begin
+				r_dd_val <= ds_val >> dt_val[4:0];
+			end else if(ctrl == 4'b1100) begin
+				r_dd_val <= ds_val >>> dt_val[4:0];
+			end
 		end
 	end
 endmodule

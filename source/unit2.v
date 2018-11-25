@@ -47,6 +47,7 @@ module unit2(
 	reg m2_is_write;
 	reg [5:0] m3_dd;
 	reg m3_is_write;
+	reg [31:0] m3_rdata;
 
 	reg io_state;
 	reg io_is_in;
@@ -157,9 +158,10 @@ module unit2(
 
 			m3_dd <= m2_dd;
 			m3_is_write <= m2_is_write;
+			m3_rdata <= d_rdata;
 
 			mem_addr <= m3_is_write ? 0 : m3_dd;
-			mem_dd_val <= d_rdata;
+			mem_dd_val <= m3_rdata;
 		end	
 	end
 
