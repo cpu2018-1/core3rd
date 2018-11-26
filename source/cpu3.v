@@ -176,8 +176,8 @@ module cpu3(
 	assign bp_r_pc = if_pc;
 
 	//if
-	assign if_is_en[0] = ~if_pc[0] && ~b_is_hazard && ~if_pre_is_j;
-	assign if_is_en[1] = ~b_is_hazard && ~if_pre_is_j;
+	assign if_is_en[0] = ~if_pc[0] && ~b_is_hazard && ~if_pre_is_j && ~wa_was_busy;
+	assign if_is_en[1] = ~b_is_hazard && ~if_pre_is_j && ~wa_was_busy;
 	assign if_is_j[0] = i_rdata[63:62] == 2'b00 && i_rdata[59:58] == 2'b10; 
 	assign if_is_j[1] = i_rdata[31:30] == 2'b00 && i_rdata[27:26] == 2'b10;
 	assign if_is_b[0] = i_rdata[63:62] != 2'b00 && i_rdata[59:58] == 2'b10;
@@ -482,10 +482,10 @@ module cpu3(
 			state <= st_normal;
 		end else if(state == st_normal) begin
 			pc <= b_is_hazard ? b_addr :
-						~wa_is_busy & if_is_en[0] & (if_is_j[0] | (if_is_b[0] & bp_is_taken0)) ? if_imm[0][13:0] :
-						~wa_is_busy & if_is_en[1] & (if_is_j[1] | (if_is_b[1] & bp_is_taken1)) ? if_imm[1][13:0] :
+						if_is_en[0] & (if_is_j[0] | (if_is_b[0] & bp_is_taken0)) ? if_imm[0][13:0] :
+						if_is_en[1] & (if_is_j[1] | (if_is_b[1] & bp_is_taken1)) ? if_imm[1][13:0] :
 						wa_is_busy ? pc :
-						{pc[13:1]+1,1'b0};
+						{pc[13:1]+1'b1,1'b0};
 
 
 			// instruction fetch
@@ -499,8 +499,8 @@ module cpu3(
 					b_is_hazard ? 0 :
 					wa_is_busy && ~wa_was_busy ? if_is_en[0] : de_tmp_is_en[0];
 			de_tmp_is_en[1] <= 
-					b_is_hazard || (if_is_en[0] && (if_is_j[0] || (if_is_b[0] & bp_is_taken0))) ? 0 :
-					wa_is_busy && ~wa_was_busy ? if_is_en[1] : de_tmp_is_en[1];
+					b_is_hazard  ? 0 :
+					wa_is_busy && ~wa_was_busy ? if_is_en[1] && !(if_is_en[0] && (if_is_j[0] || (if_is_b[0] & bp_is_taken0))) : de_tmp_is_en[1];
 			de_tmp_taken[0] <= wa_is_busy && ~wa_was_busy ? (if_is_b[0] & bp_is_taken0) : de_tmp_taken[0];
 			de_tmp_taken[1] <= wa_is_busy && ~wa_was_busy ? (if_is_b[1] & bp_is_taken1) : de_tmp_taken[1];
 			de_tmp_used <= wa_is_busy;
