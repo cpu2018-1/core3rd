@@ -224,11 +224,11 @@ module cpu3(
 	assign de_ctrl[0] = 
 			de_instr[0][2:0] == 3'b001 ? de_instr[0][6:3] : 
 			de_instr[0][2:0] == 3'b101 ? 4'b1110 :
-			de_instr[0][1:0] == 2'b10 && de_instr[0][5:4] != 2'b00 ? {4{de_taken}} : 0; 
+			de_instr[0][1:0] == 2'b10 && de_instr[0][5:4] != 2'b00 ? {4{de_taken[0]}} : 0; 
 	assign de_ctrl[1] = 
 			de_instr[1][2:0] == 3'b001 ? de_instr[1][6:3] :
 			de_instr[1][2:0] == 3'b101 ? 4'b1110 :
-			de_instr[1][1:0] == 2'b10 && de_instr[1][5:4] != 2'b00 ? {4{de_taken}} : 0;
+			de_instr[1][1:0] == 2'b10 && de_instr[1][5:4] != 2'b00 ? {4{de_taken[1]}} : 0;
 	assign de_mod[0] = de_instr[0][28:26] == 3'b011 ? mod_u2 :
 										 de_instr[0][28:26] == 3'b111 ? mod_u2 :
 										 de_instr[0][27:26] == 2'b10 ? mod_u1 :

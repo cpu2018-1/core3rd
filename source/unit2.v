@@ -205,7 +205,7 @@ module unit2(
 				io_addr <= 0;
 				io_state <= 0;
 			end
-		end else if(state == 3) begin //IN only
+		end else if(io_state == 3) begin //IN only
 			io_addr <= io_tmp_addr;
 			io_dd_val <= {24'b0,io_tmp_data};
 			io_state <= 0;
