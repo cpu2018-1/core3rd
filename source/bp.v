@@ -14,8 +14,8 @@ module bp(
 	wire [9:0] addr0;
 	wire [9:0] addr1;
 
-	assign addr0 = {r_pc[9:0],1'b0};
-	assign addr1 = {r_pc[9:0],1'b1};
+	assign addr0 = {r_pc[9:1],1'b0};
+	assign addr1 = {r_pc[9:1],1'b1};
 	assign is_taken0 = mem[addr0][1];
 	assign is_taken1 = mem[addr1][1];
 
