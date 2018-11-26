@@ -352,27 +352,28 @@ module cpu3(
 	assign dep_ok[2] =
 			((board | dd_board[0] | dd_board[1]) & wa_std_board[2] & mask) == 0 &&
 			((wa_std_board[0] | wa_std_board[1]) & dd_board[2] & mask) == 0;
+	//FPUはu3>u1, aluはu1>u2
 	assign u1_get =
 			b_is_hazard || u1_is_b ? 3'b000 :
-			dep_ok[0] && wa_mod[0][0] && (wa_latency[0] & u1_is_busy) == 0 &&
-					(wa_ope[0][1:0] != 2'b01) ? 3'b001 :
+			dep_ok[0] && wa_mod[0][0] && (wa_latency[0] & u1_is_busy) == 0 &&	(wa_ope[0][1:0] != 2'b01) ? 3'b001 :
 			(wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0) ? 3'b000 :
-			dep_ok[1] && wa_mod[1][0] && (wa_latency[1] & u1_is_busy) == 0 && 
-					!(wa_ope[0][1:0] != 2'b01 && wa_ope[1][1:0] == 2'b01)  ? 3'b010 :
-			(wa_ope[1][1:0] == 2'b10 && wa_ope[0][5:3] != 0) ? 3'b000 :
-			dep_ok[2] && wa_mod[2][0] && (wa_latency[2] & u1_is_busy) == 0 && 
-					!(wa_ope[0][1:0] != 2'b01 && wa_ope[1][1:0] != 2'b01 && wa_ope[2][1:0] == 2'b01) ? 3'b100 :
+			dep_ok[1] && wa_mod[1][0] && (wa_latency[1] & u1_is_busy) == 0 && ~u3_get[1] ? 3'b010 :
+			(wa_ope[1][1:0] == 2'b10 && wa_ope[0][5:3] != 3'b0) ? 3'b000 :
+			dep_ok[2] && wa_mod[2][0] && (wa_latency[2] & u1_is_busy) == 0 &&
+					!(wa_ope[2][1:0] == 2'b10 && wa_ope[2][5:3] != 3'b0) && ~u3_get[2] ? 3'b100 :
 			3'b000;
 
+	// wa_mod[0] == mod_u2 :: IO,MEMの整合性を取るためin-order
 	assign u2_get = 
 			b_is_hazard || u1_is_b ? 3'b000 : 
 			dep_ok[0] && wa_mod[0][1] && (wa_latency[0] & u2_is_busy) == 0 && 
 					(wa_ope[0][1:0] != 2'b00) ? 3'b001 :
 			(wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0) || wa_mod[0] == mod_u2 ? 3'b000 :
 			dep_ok[1] && wa_mod[1][1] && (wa_latency[1] & u2_is_busy) == 0 && 
-					!(wa_ope[0][1:0] == 2'b01 && wa_ope[1][1:0] == 2'b00) ? 3'b010 :
+					!(wa_ope[1][1:0] == 2'b00 && u1_get[1]) ? 3'b010 :
 			(wa_ope[1][1:0] == 2'b10 && wa_ope[0][5:3] != 0) || wa_mod[1] == mod_u2 ? 3'b000 :
-			dep_ok[2] && wa_mod[2][1] && (wa_latency[2] & u2_is_busy) == 0 ? 3'b100 :
+			dep_ok[2] && wa_mod[2][1] && (wa_latency[2] & u2_is_busy) == 0 &&
+					!(wa_ope[2][1:0] == 2'b00 && u1_get[2]) ? 3'b100 :
 			3'b000;
 
 	assign u3_get = 
