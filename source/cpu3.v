@@ -357,8 +357,9 @@ module cpu3(
 			b_is_hazard || u1_is_b ? 3'b000 :
 			dep_ok[0] && wa_mod[0][0] && (wa_latency[0] & u1_is_busy) == 0 &&	(wa_ope[0][1:0] != 2'b01) ? 3'b001 :
 			(wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0) ? 3'b000 :
-			dep_ok[1] && wa_mod[1][0] && (wa_latency[1] & u1_is_busy) == 0 && ~u3_get[1] ? 3'b010 :
-			(wa_ope[1][1:0] == 2'b10 && wa_ope[0][5:3] != 3'b0) ? 3'b000 :
+			dep_ok[1] && wa_mod[1][0] && (wa_latency[1] & u1_is_busy) == 0 && ~u3_get[1]  &&
+				!(wa_ope[1][1:0] == 2'b10 && wa_ope[1][5:3] == 3'b0 && !(dep_ok[0] && (wa_latency[0] & u1_is_busy) == 0)) ? 3'b010 :
+			(wa_ope[1][1:0] == 2'b10 && wa_ope[1][5:3] != 3'b0) ? 3'b000 :
 			dep_ok[2] && wa_mod[2][0] && (wa_latency[2] & u1_is_busy) == 0 &&
 					!(wa_ope[2][1:0] == 2'b10 && wa_ope[2][5:3] != 3'b0) && ~u3_get[2] ? 3'b100 :
 			3'b000;
@@ -371,7 +372,7 @@ module cpu3(
 			(wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0) || wa_mod[0] == mod_u2 ? 3'b000 :
 			dep_ok[1] && wa_mod[1][1] && (wa_latency[1] & u2_is_busy) == 0 && 
 					!(wa_ope[1][1:0] == 2'b00 && u1_get[1]) ? 3'b010 :
-			(wa_ope[1][1:0] == 2'b10 && wa_ope[0][5:3] != 0) || wa_mod[1] == mod_u2 ? 3'b000 :
+			(wa_ope[1][1:0] == 2'b10 && wa_ope[1][5:3] != 0) || wa_mod[1] == mod_u2 ? 3'b000 :
 			dep_ok[2] && wa_mod[2][1] && (wa_latency[2] & u2_is_busy) == 0 &&
 					!(wa_ope[2][1:0] == 2'b00 && u1_get[2]) ? 3'b100 :
 			3'b000;
@@ -381,7 +382,7 @@ module cpu3(
 			dep_ok[0] && wa_mod[0][2] && (wa_latency[0] & u3_is_busy) == 0 ? 3'b001 :
 			(wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0) ? 3'b000 :
 			dep_ok[1] && wa_mod[1][2] && (wa_latency[1] & u3_is_busy) == 0 ? 3'b010 :
-			(wa_ope[1][1:0] == 2'b10 && wa_ope[0][5:3] != 0) ? 3'b000 :
+			(wa_ope[1][1:0] == 2'b10 && wa_ope[1][5:3] != 0) ? 3'b000 :
 			dep_ok[2] && wa_mod[2][2] && (wa_latency[2] & u3_is_busy) == 0 ? 3'b100 : 3'b000;
 
 	assign issued = u3_get | u2_get | u1_get;
