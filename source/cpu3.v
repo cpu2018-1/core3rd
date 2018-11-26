@@ -286,9 +286,9 @@ module cpu3(
 	assign wa_ds_val[2] = reg_ds_data[2];
 	assign wa_dt_val[2] = reg_dt_data[2];
 
-	assign wa_std_board[0] = (1 << wa_ds[0]) & (1 << wa_dt[0]) & dd_board[0] & mask;
-	assign wa_std_board[1] = (1 << wa_ds[1]) & (1 << wa_dt[1]) & dd_board[1] & mask;
-	assign wa_std_board[2] = (1 << wa_ds[2]) & (1 << wa_dt[2]) & dd_board[2] & mask;
+	assign wa_std_board[0] = ((1 << wa_ds[0]) | (1 << wa_dt[0]) | dd_board[0]) & mask;
+	assign wa_std_board[1] = ((1 << wa_ds[1]) | (1 << wa_dt[1]) | dd_board[1]) & mask;
+	assign wa_std_board[2] = ((1 << wa_ds[2]) | (1 << wa_dt[2]) | dd_board[2]) & mask;
 	// 2個以上残るときはbusy
 	assign wa_is_busy = (wa_exist[0] && wa_exist[1]) || (wa_exist[1] && wa_exist[2]) || (wa_exist[2] && wa_exist[0]);
 
@@ -316,7 +316,7 @@ module cpu3(
 	assign wa_sig2 = 
 			b_is_hazard ? 4'b0001 :
 			wa_exist[0] && wa_exist[1] && wa_exist[2] ? 4'b1000 :
-			wa_is_busy ? 0 : // de_data[0]が来ることはない
+			wa_is_busy ? 4'b0001 : // de_data[0]が来ることはない
 			(wa_exist[0] ^ wa_exist[1]) && de_is_en[0] && de_is_en[1] ? 4'b0010 :
 			~wa_exist[0] && ~wa_exist[1] && wa_exist[2] && de_is_en[0] && de_is_en[1] ? 4'b0010 : 4'b0001;
 
@@ -390,7 +390,7 @@ module cpu3(
 	assign dd_board[1] = 1 << wa_dd[1];
 	assign dd_board[2] = 1 << wa_dd[2];
 
-	integer i1,i2;
+	integer i1,i2,i3;
 
 	always @(posedge clk) begin
 		if (~rstn) begin
@@ -415,6 +415,10 @@ module cpu3(
 			end
 			wa_was_busy <= 0;
 			board <= 0;
+			for(i3=0;i3 < 6;i3=i3+1) begin
+				reg_addr[i3] <= 0;
+				reg_wdata[i3] <= 0;
+			end
 
 			u1_ope <= 0;
 			u1_pc <= 0;
@@ -439,8 +443,8 @@ module cpu3(
 			state <= st_normal;
 		end else if(state == st_normal) begin
 			pc <= b_is_hazard ? b_addr :
-						~wa_was_busy & (if_is_j[0] & (if_is_b[0] & bp_is_taken0)) ? if_imm[0][13:0] :
-						~wa_was_busy & (if_is_j[1] & (if_is_b[1] & bp_is_taken1)) ? if_imm[1][13:0] :
+						~wa_was_busy & (if_is_j[0] | (if_is_b[0] & bp_is_taken0)) ? if_imm[0][13:0] :
+						~wa_was_busy & (if_is_j[1] | (if_is_b[1] & bp_is_taken1)) ? if_imm[1][13:0] :
 						wa_is_busy ? pc :
 						{pc[13:1]+1,1'b0};
 
@@ -621,7 +625,6 @@ module cpu3(
 			end
 
 			//write back
-	//  クロック上がるかも？　forwardingかboard更新回りなおすかする必要あり
 			reg_addr[0] <= alu_reg_addr;
 			reg_addr[1] <= alu2_reg_addr;
 			reg_addr[2] <= io_reg_addr;
@@ -641,6 +644,11 @@ module cpu3(
 			regfile[reg_addr[4]] <= reg_wdata[4];
 			regfile[reg_addr[5]] <= reg_wdata[5];
 
+			board <= (board & ~(1 << reg_addr[0]) & ~(1 << reg_addr[1]) & ~(1 << reg_addr[2]) & 
+									~(1 << reg_addr[3]) & ~(1 << reg_addr[4]) & ~(1 << reg_addr[5])) |
+								(issued[0] ? dd_board[0] : 0) | (issued[1] ? dd_board[1] : 0) | 
+								(issued[2] ? dd_board[2] : 0);
+/*
 			regfile[alu_reg_addr] <= alu_dd_val;
 			regfile[alu2_reg_addr] <= alu2_dd_val;
 			regfile[io_reg_addr] <= io_dd_val;
@@ -648,11 +656,6 @@ module cpu3(
 			regfile[fpu_reg_addr] <= fpu_dd_val;
 			regfile[fpu2_reg_addr] <= fpu2_dd_val;
 
-			board <= (board & ~(1 << reg_addr[0]) & ~(1 << reg_addr[1]) & ~(1 << reg_addr[2]) & 
-									~(1 << reg_addr[3]) & ~(1 << reg_addr[4]) & ~(1 << reg_addr[5])) |
-								(issued[0] ? dd_board[0] : 0) | (issued[1] ? dd_board[1] : 0) | 
-								(issued[2] ? dd_board[2] : 0);
-/*
 			board <= (board & ~(1 << alu_reg_addr) & ~(1 << alu2_reg_addr) & ~(1 << io_reg_addr) & 
 									~(1 << mem_reg_addr) & ~(1 << fpu_reg_addr) & ~(1 << fpu2_reg_addr)) |
 								(issued[0] ? dd_board[0] : 0) | (issued[1] ? dd_board[1] : 0) | 

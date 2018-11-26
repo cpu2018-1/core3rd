@@ -150,11 +150,16 @@ module unit2(
 			m2_is_write <= 0;
 			m3_dd <= 0;
 			m3_is_write <= 0;
-		end else if(ope[2:0] == 4'b111) begin			
-			m1_addr <= $signed(ds_val) + $signed(imm);
-			m1_wdata <= dt_val;
-			m1_dd <= dd;
-			m1_is_write <= ~ope[3];
+		end else begin			
+			if(ope[2:0] == 3'b111) begin
+				m1_addr <= $signed(ds_val) + $signed(imm);
+				m1_wdata <= dt_val;
+				m1_dd <= dd;
+				m1_is_write <= ~ope[3];
+			end else begin
+				m1_dd <= 0;
+				m1_is_write <= 0;
+			end
 
 			m2_dd <= m1_dd;
 			m2_is_write <= m1_is_write;
