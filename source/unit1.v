@@ -73,7 +73,7 @@ module unit1(
 				ope == 6'b001010 || ope == 6'b001110 || 
 				(ope[1:0] == 2'b10 && ope[5:4] != 2'b0 && (taken ^ was_branch));
 		b_addr <= 
-				ope[2:0] == 3'b110 ? ds_val :
+				(ope[1:0] == 2'b10 && ope[5:4] == 2'b00) ? ds_val :
 				taken ? imm[13:0] : pc_1;
 		b_is_b_ope <= ope[1:0] == 2'b10 && ope[5:4] != 2'b0;
 		b_is_branch <= taken;

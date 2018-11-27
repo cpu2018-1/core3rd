@@ -168,6 +168,8 @@ module cpu3(
 	wire [2:0] issued;
 	wire [63:0] dd_board [2:0];
 
+	reg b_was_hazard;
+
 	//instr mem
 	assign i_addr = pc[13:1];
 	assign i_en = 1'b1;
@@ -176,8 +178,8 @@ module cpu3(
 	assign bp_r_pc = if_pc;
 
 	//if
-	assign if_is_en[0] = ~if_pc[0] && ~b_is_hazard && ~if_pre_is_j && ~wa_was_busy;
-	assign if_is_en[1] = ~b_is_hazard && ~if_pre_is_j && ~wa_was_busy;
+	assign if_is_en[0] = ~if_pc[0] && ~b_is_hazard && ~if_pre_is_j && ~wa_was_busy && ~b_was_hazard;
+	assign if_is_en[1] = ~b_is_hazard && ~if_pre_is_j && ~wa_was_busy && ~b_was_hazard;
 	assign if_is_j[0] = i_rdata[63:62] == 2'b00 && i_rdata[59:58] == 2'b10; 
 	assign if_is_j[1] = i_rdata[31:30] == 2'b00 && i_rdata[27:26] == 2'b10;
 	assign if_is_b[0] = i_rdata[63:62] != 2'b00 && i_rdata[59:58] == 2'b10;
@@ -458,6 +460,7 @@ module cpu3(
 				reg_addr[i3] <= 0;
 				reg_wdata[i3] <= 0;
 			end
+			b_was_hazard <= 0;
 
 			u1_ope <= 0;
 			u1_pc <= 0;
@@ -487,6 +490,8 @@ module cpu3(
 						wa_is_busy ? pc :
 						{pc[13:1]+1'b1,1'b0};
 
+
+			b_was_hazard <= b_is_hazard;
 
 			// instruction fetch
 			if_pc <= pc;
@@ -521,7 +526,8 @@ module cpu3(
 			de_is_en[1] <= 
 					b_is_hazard ? 0 :
 					wa_is_busy ? de_is_en[1] :
-					de_tmp_used ? de_tmp_is_en[1] :	(if_is_en[1] & ~if_is_j[0] & ~(if_is_b[0] & bp_is_taken0));
+					de_tmp_used ? de_tmp_is_en[1] :	(if_is_en[1] & 
+							~(if_is_en[0] & (if_is_j[0] | (if_is_b[0] & bp_is_taken0))));
 			de_taken[0] <= 
 					wa_is_busy ? de_taken[0] : 
 					de_tmp_used ? de_tmp_taken[0] : (if_is_b[0] & bp_is_taken0);
