@@ -7,9 +7,9 @@ module cpu3(
 	input wire [63:0] i_rdata,
 	output wire i_en,
 	//data memory
-	output wire [16:0] d_addr,
-	output wire [31:0] d_wdata,
-	input wire [31:0] d_rdata,
+	(* mark_debug = "true" *) output wire [16:0] d_addr,
+	(* mark_debug = "true" *) output wire [31:0] d_wdata,
+	(* mark_debug = "true" *) input wire [31:0] d_rdata,
 	output wire d_en,
 	output wire d_we,
 	//IO
@@ -17,9 +17,9 @@ module cpu3(
 	output wire io_in_rdy,
 	input wire io_in_vld,
 
-	output wire [7:0] io_out_data,
-	input wire io_out_rdy,
-	output wire io_out_vld,
+	(* mark_debug = "true" *)	output wire [7:0] io_out_data,
+	(* mark_debug = "true" *) input wire io_out_rdy,
+	(* mark_debug = "true" *) output wire io_out_vld,
 
 	input wire [4:0] io_err
 	);
@@ -33,11 +33,20 @@ module cpu3(
 
 	localparam mask = ~({31'b0,1'b1,31'b0,1'b1});
 
-	reg [13:0] pc;
+	(* mark_debug = "true" *) reg [13:0] pc;
 	reg [2:0] state;
 
 	//register {fpr,gpr}
 	reg [31:0] regfile [63:0];
+
+	(* mark_debug = "true" *) wire [31:0] dbg_1;
+	(* mark_debug = "true" *) wire [31:0] dbg_2;
+	(* mark_debug = "true" *) wire [31:0] dbg_3;
+	(* mark_debug = "true" *) wire [31:0] dbg_31;
+	assign dbg_1 = regfile[1];
+	assign dbg_2 = regfile[2];
+	assign dbg_3 = regfile[3];
+	assign dbg_31 = regfile[31];
 
 
 	wire [13:0] bp_r_pc;
@@ -82,7 +91,7 @@ module cpu3(
 	reg [72:0] wa_data [2:0];
 	reg wa_is_en [2:0];
 	wire [13:0] wa_pc [2:0];
-	wire [5:0] wa_ope [2:0];
+  (* mark_debug = "true" *) wire [5:0] wa_ope [2:0];
 	wire [5:0] wa_ds [2:0];
 	wire [5:0] wa_dt [2:0];
 	wire [5:0] wa_dd [2:0];
@@ -94,7 +103,7 @@ module cpu3(
 	wire [72:0] wa_std_board [2:0];
 	wire [31:0] wa_ds_val [2:0];
 	wire [31:0] wa_dt_val [2:0];
-	wire wa_is_busy;
+	(* mark_debug = "true" *) wire wa_is_busy;
 	reg wa_was_busy;
 	wire wa_exist [2:0];
 	wire [5:0] wa_sig0;
@@ -112,7 +121,7 @@ module cpu3(
 	reg [4:0] u1_opr;
 	reg [3:0] u1_ctrl;
 	wire [6:0] u1_is_busy;
-	wire b_is_hazard;
+	(* mark_debug = "true" *) wire b_is_hazard;
 	wire [13:0] b_addr;
 	wire [5:0] alu_reg_addr;
 	wire [31:0] alu_dd_val;
