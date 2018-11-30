@@ -238,11 +238,11 @@ module cpu3(
 	assign de_ctrl[0] = 
 			de_instr[0][28:26] == 3'b001 ? de_instr[0][6:3] : 
 			de_instr[0][28:26] == 3'b101 ? 4'b1110 :
-			de_instr[0][27:26] == 2'b10 && de_instr[0][5:4] != 2'b0 ? {4{de_taken[0]}} : 0; 
+			de_instr[0][27:26] == 2'b10 && de_instr[0][31:30] != 2'b0 ? {4{de_taken[0]}} : 0; 
 	assign de_ctrl[1] = 
 			de_instr[1][28:26] == 3'b001 ? de_instr[1][6:3] :
 			de_instr[1][28:26] == 3'b101 ? 4'b1110 :
-			de_instr[1][27:26] == 2'b10 && de_instr[1][5:4] != 2'b0 ? {4{de_taken[1]}} : 0;
+			de_instr[1][27:26] == 2'b10 && de_instr[1][31:30] != 2'b0 ? {4{de_taken[1]}} : 0;
 	assign de_mod[0] = de_instr[0][28:26] == 3'b011 ? mod_u2 :
 										 de_instr[0][28:26] == 3'b111 ? mod_u2 :
 										 de_instr[0][27:26] == 2'b10 ? mod_u1 :
@@ -253,8 +253,8 @@ module cpu3(
 										 de_instr[1][27:26] == 2'b10 ? mod_u1 :
 										 de_instr[1][27:26] == 2'b00 ? mod_u1 | mod_u2 :
 										 de_instr[1][28:26] == 2'b01 ? mod_u1 | mod_u3 : 0;
-	assign de_latency[0] = {6'b0,de_instr[0][2:0] == 3'b011 ? 1'b1 : 1'b0}; 
-	assign de_latency[1] = {6'b0,de_instr[1][2:0] == 3'b011 ? 1'b1 : 1'b0}; 
+	assign de_latency[0] = {6'b0,de_instr[0][28:26] == 3'b011 ? 1'b1 : 1'b0}; 
+	assign de_latency[1] = {6'b0,de_instr[1][28:26] == 3'b011 ? 1'b1 : 1'b0}; 
 	assign de_data[0] = {{de_pc[13:1],1'b0},de_ope[0],de_ds[0],de_dt[0],de_dd[0],de_imm[0],de_opr[0],de_ctrl[0],de_mod[0],de_latency[0]};
 	assign de_data[1] =
 			de_is_j[0] ? 0 : {{de_pc[13:1],1'b1},de_ope[1],de_ds[1],de_dt[1],de_dd[1],de_imm[1],de_opr[1],de_ctrl[1],de_mod[1],de_latency[1]};
