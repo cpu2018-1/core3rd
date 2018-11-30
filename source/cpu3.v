@@ -74,7 +74,7 @@ module cpu3(
 	reg de_tmp_used;
 	reg [31:0] de_instr [1:0];
 	reg de_is_en [1:0];
-	reg de_taken [1:0];
+	(* mark_debug = "true" *) reg de_taken [1:0];
 	wire de_is_j [1:0];
 	wire de_is_b [1:0];
 	wire [5:0] de_ope [1:0];
@@ -83,19 +83,19 @@ module cpu3(
 	wire [5:0] de_dd [1:0];
 	wire [15:0] de_imm [1:0];
 	wire [4:0] de_opr [1:0];
-	wire [3:0] de_ctrl [1:0];
+	(* mark_debug = "true" *) wire [3:0] de_ctrl [1:0];
 	wire [2:0] de_mod [1:0];
 	wire [6:0] de_latency [1:0];
 	wire [72:0] de_data [1:0];
 	//wait
 	reg [72:0] wa_data [2:0];
 	reg wa_is_en [2:0];
-	wire [13:0] wa_pc [2:0];
+	(* mark_debug = "true" *) wire [13:0] wa_pc [2:0];
   (* mark_debug = "true" *) wire [5:0] wa_ope [2:0];
-	wire [5:0] wa_ds [2:0];
-	wire [5:0] wa_dt [2:0];
-	wire [5:0] wa_dd [2:0];
-	wire [15:0] wa_imm [2:0];
+	(* mark_debug = "true" *) wire [5:0] wa_ds [2:0];
+	(* mark_debug = "true" *) wire [5:0] wa_dt [2:0];
+	(* mark_debug = "true" *) wire [5:0] wa_dd [2:0];
+	(* mark_debug = "true" *) wire [15:0] wa_imm [2:0];
 	wire [4:0] wa_opr [2:0];
 	wire [3:0] wa_ctrl [2:0];
 	wire [2:0] wa_mod [2:0];
@@ -132,7 +132,7 @@ module cpu3(
 							alu_reg_addr,alu_dd_val,fpu_reg_addr,fpu_dd_val);
 	// b_hogeがregのとき
 	wire u1_is_b;
-	assign u1_is_b = u1_ope[1:0] == 2'b10 && u1_ope[5:4] != 2'b0;
+	assign u1_is_b = u1_ope[1:0] == 2'b10 && u1_ope[5:3] != 3'b0;
 		
 		// unit2
 	wire [2:0] u2_get;
@@ -174,7 +174,7 @@ module cpu3(
 	//board {fpr,gpr}
 	reg [63:0] board;
 	wire dep_ok [2:0];
-	wire [2:0] issued;
+	(* mark_debug = "true" *) wire [2:0] issued;
 	wire [63:0] dd_board [2:0];
 
 	reg b_was_hazard;
@@ -189,8 +189,8 @@ module cpu3(
 	//if
 	assign if_is_en[0] = ~if_pc[0] && ~b_is_hazard && ~if_pre_is_j && ~wa_was_busy && ~b_was_hazard;
 	assign if_is_en[1] = ~b_is_hazard && ~if_pre_is_j && ~wa_was_busy && ~b_was_hazard;
-	assign if_is_j[0] = i_rdata[63:62] == 2'b00 && i_rdata[59:58] == 2'b10; 
-	assign if_is_j[1] = i_rdata[31:30] == 2'b00 && i_rdata[27:26] == 2'b10;
+	assign if_is_j[0] = i_rdata[63:61] == 3'b000 && i_rdata[59:58] == 2'b10; 
+	assign if_is_j[1] = i_rdata[31:29] == 2'b000 && i_rdata[27:26] == 2'b10;
 	assign if_is_b[0] = i_rdata[63:62] != 2'b00 && i_rdata[59:58] == 2'b10;
 	assign if_is_b[1] = i_rdata[31:30] != 2'b00 && i_rdata[27:26] == 2'b10;
 	assign if_imm[0] = i_rdata[47:32];
@@ -199,8 +199,8 @@ module cpu3(
 	assign if_instr[1] = i_rdata[31:0];
 
 	//de
-	assign de_is_j[0] = de_is_en[0] && de_instr[0][31:30] == 2'b00 && de_instr[0][27:26] == 2'b10;
-	assign de_is_j[1] = de_is_en[1] && de_instr[1][31:30] == 2'b00 && de_instr[1][27:26] == 2'b10;
+	assign de_is_j[0] = de_is_en[0] && de_instr[0][31:29] == 3'b000 && de_instr[0][27:26] == 2'b10;
+	assign de_is_j[1] = de_is_en[1] && de_instr[1][31:29] == 3'b000 && de_instr[1][27:26] == 2'b10;
 	assign de_is_b[0] = de_is_en[0] && de_instr[0][31:30] > 2'b00 && de_instr[0][27:26] == 2'b10;
 	assign de_is_b[1] = de_is_en[1] && de_instr[1][31:30] > 2'b00 && de_instr[1][27:26] == 2'b10;
 	assign de_ope[0] = de_instr[0][31:26];
@@ -236,13 +236,13 @@ module cpu3(
 	assign de_opr[0] = de_instr[0][25:21];
 	assign de_opr[1] = de_instr[1][25:21];
 	assign de_ctrl[0] = 
-			de_instr[0][2:0] == 3'b001 ? de_instr[0][6:3] : 
-			de_instr[0][2:0] == 3'b101 ? 4'b1110 :
-			de_instr[0][1:0] == 2'b10 && de_instr[0][5:4] != 2'b00 ? {4{de_taken[0]}} : 0; 
+			de_instr[0][28:26] == 3'b001 ? de_instr[0][6:3] : 
+			de_instr[0][28:26] == 3'b101 ? 4'b1110 :
+			de_instr[0][27:26] == 2'b10 && de_instr[0][5:4] != 2'b0 ? {4{de_taken[0]}} : 0; 
 	assign de_ctrl[1] = 
-			de_instr[1][2:0] == 3'b001 ? de_instr[1][6:3] :
-			de_instr[1][2:0] == 3'b101 ? 4'b1110 :
-			de_instr[1][1:0] == 2'b10 && de_instr[1][5:4] != 2'b00 ? {4{de_taken[1]}} : 0;
+			de_instr[1][28:26] == 3'b001 ? de_instr[1][6:3] :
+			de_instr[1][28:26] == 3'b101 ? 4'b1110 :
+			de_instr[1][27:26] == 2'b10 && de_instr[1][5:4] != 2'b0 ? {4{de_taken[1]}} : 0;
 	assign de_mod[0] = de_instr[0][28:26] == 3'b011 ? mod_u2 :
 										 de_instr[0][28:26] == 3'b111 ? mod_u2 :
 										 de_instr[0][27:26] == 2'b10 ? mod_u1 :
@@ -365,7 +365,7 @@ module cpu3(
 			wa_ds[1][5:0] == reg_addr[5] ? reg_wdata[5] :
 			regfile[wa_ds[1]];
 	assign reg_dt_data[1] = 
-			wa_dt[1][5:0] == 0 ? 0 : 
+			wa_dt[1][4:0] == 0 ? 0 : 
 			wa_dt[1][5:0] == reg_addr[0] ? reg_wdata[0] :
 			wa_dt[1][5:0] == reg_addr[1] ? reg_wdata[1] :
 			wa_dt[1][5:0] == reg_addr[2] ? reg_wdata[2] :
@@ -408,10 +408,10 @@ module cpu3(
 			dep_ok[0] && wa_mod[0][0] && (wa_latency[0] & u1_is_busy) == 0 &&	(wa_ope[0][1:0] != 2'b01) ? 3'b001 :
 			(wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0) ? 3'b000 :
 			dep_ok[1] && wa_mod[1][0] && (wa_latency[1] & u1_is_busy) == 0 && ~u3_get[1]  &&
-				!(wa_ope[1][1:0] == 2'b10 && wa_ope[1][5:3] == 3'b0 && !(dep_ok[0] && (wa_latency[0] & u1_is_busy) == 0)) ? 3'b010 :
+				!(wa_ope[1][1:0] == 2'b10 && wa_ope[1][5:4] == 2'b0 && !(dep_ok[0] && (wa_latency[0] & u1_is_busy) == 0)) ? 3'b010 :
 			(wa_ope[1][1:0] == 2'b10 && wa_ope[1][5:3] != 3'b0) ? 3'b000 :
 			dep_ok[2] && wa_mod[2][0] && (wa_latency[2] & u1_is_busy) == 0 &&
-					!(wa_ope[2][1:0] == 2'b10 && wa_ope[2][5:3] != 3'b0) && ~u3_get[2] ? 3'b100 :
+					!(wa_ope[2][1:0] == 2'b10 && wa_ope[2][5:4] != 2'b0) && ~u3_get[2] ? 3'b100 :
 			3'b000;
 
 	// wa_mod[0] == mod_u2 :: IO,MEMの整合性を取るためin-order

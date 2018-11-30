@@ -14,8 +14,8 @@ module IOcontroller (
 	output reg [4:0] io_err, // { resp[1],parity,frame,overrun,lost }
 
 	// axi4 lite
-	(* mark_debug = "true" *) output wire [3:0] s_axi_araddr, // out :read addr
-	(* mark_debug = "true" *) input wire s_axi_arready,
+	output wire [3:0] s_axi_araddr, // out :read addr
+	input wire s_axi_arready,
 	output reg s_axi_arvalid,
 	output wire [3:0] s_axi_awaddr, // out :write addr
 	input wire s_axi_awready,
@@ -23,11 +23,11 @@ module IOcontroller (
 	output reg s_axi_bready,				// in :is written properly ?
 	input wire [1:0] s_axi_bresp,
 	input wire s_axi_bvalid,
-	(* mark_debug = "true" *) input wire [31:0] s_axi_rdata,	// in :read data
+	input wire [31:0] s_axi_rdata,	// in :read data
 	output reg s_axi_rready,
 	input wire [1:0] s_axi_rresp,
-	(* mark_debug = "true" *) input wire s_axi_rvalid,
-	(* mark_debug = "true" *) output wire [31:0] s_axi_wdata,	// out :write data
+	input wire s_axi_rvalid,
+	output wire [31:0] s_axi_wdata,	// out :write data
 	input wire s_axi_wready,
 	output wire [3:0] s_axi_wstrb,
 	output reg s_axi_wvalid
