@@ -50,8 +50,8 @@ module cpu3(
 
 
 	wire [13:0] bp_r_pc;
-	wire bp_is_taken0;
-	wire bp_is_taken1;
+	(* mark_debug = "true" *) wire bp_is_taken0;
+	(* mark_debug = "true" *) wire bp_is_taken1;
 	wire bp_is_b_ope;
 	wire bp_is_branch;
 	wire [13:0] bp_w_pc;
@@ -59,10 +59,10 @@ module cpu3(
 	
 	//instruction fetch
 	reg [13:0] if_pc;
-	wire if_is_en [1:0];
+	(* mark_debug = "true" *) wire if_is_en [1:0];
 	wire if_is_j [1:0];
-	wire if_is_b [1:0];
-	wire [15:0] if_imm [1:0];
+	(* mark_debug = "true" *) wire if_is_b [1:0];
+	(* mark_debug = "true" *) wire [15:0] if_imm [1:0];
 	reg if_pre_is_j;
 	wire [31:0] if_instr [1:0];
 	//decode
@@ -122,7 +122,7 @@ module cpu3(
 	reg [3:0] u1_ctrl;
 	wire [6:0] u1_is_busy;
 	(* mark_debug = "true" *) wire b_is_hazard;
-	wire [13:0] b_addr;
+	(* mark_debug = "true" *) wire [13:0] b_addr;
 	wire [5:0] alu_reg_addr;
 	wire [31:0] alu_dd_val;
 	wire [5:0] fpu_reg_addr;
@@ -193,8 +193,11 @@ module cpu3(
 	assign if_is_j[1] = i_rdata[31:29] == 2'b000 && i_rdata[27:26] == 2'b10;
 	assign if_is_b[0] = i_rdata[63:62] != 2'b00 && i_rdata[59:58] == 2'b10;
 	assign if_is_b[1] = i_rdata[31:30] != 2'b00 && i_rdata[27:26] == 2'b10;
-	assign if_imm[0] = i_rdata[47:32];
-	assign if_imm[1] = i_rdata[15:0];
+	// beq,ble対策
+	assign if_imm[0] = 
+			i_rdata[63:58] == 6'b010010 || i_rdata[63:58] ==  6'b011010 ? {i_rdata[57:52],i_rdata[42:32]}  : i_rdata[47:32];
+	assign if_imm[1] = 
+			i_rdata[31:26] == 6'b010010 || i_rdata[31:26] == 6'b011010 ? {i_rdata[25:20],i_rdata[10:0]} : i_rdata[15:0];
 	assign if_instr[0] = i_rdata[63:32];
 	assign if_instr[1] = i_rdata[31:0];
 
