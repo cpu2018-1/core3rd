@@ -7,8 +7,8 @@ module unit2(
 		input wire [5:0] dd,
 		input wire [15:0] imm,
 		output wire [6:0] is_busy,
-		output reg [5:0] alu_addr,
-		output reg [31:0] alu_dd_val,
+//		output wire [5:0] alu_addr, ////
+//		output wire [31:0] alu_dd_val, ////
 		output reg [5:0] mem_addr,
 		output reg [31:0] mem_dd_val,
 		output reg [5:0] io_addr,
@@ -28,8 +28,8 @@ module unit2(
 		input wire io_out_rdy,
 		output reg io_out_vld
 	);
-	// ALU or MEM or IO 
-
+	//MEM or IO 
+/*
 	wire [31:0] ex_imm;
 	wire [31:0] alu_rs;
 	wire [31:0] alu_rt_imm;
@@ -38,7 +38,7 @@ module unit2(
 	wire [31:0] sll;
 	wire [31:0] srl;
 	wire [31:0] sra;
-
+*/
 	reg [16:0] m1_addr;
 	reg [31:0] m1_wdata;
 	reg [5:0] m1_dd;
@@ -54,7 +54,7 @@ module unit2(
 	reg [5:0] io_tmp_addr;
 	reg [7:0] io_tmp_data;
 	wire io_busy_cond;
-
+/*
 	assign ex_imm = {{16{imm[15]}},imm};
 	assign alu_rs = ds_val;
 	assign alu_rt_imm = ope[2] ? dt_val : ex_imm;
@@ -63,7 +63,7 @@ module unit2(
 	assign sll = alu_rs << alu_rt_imm[4:0];
 	assign srl = alu_rs >> alu_rt_imm[4:0];
 	assign sra = alu_rs >>> alu_rt_imm[4:0];
-
+*/
 	assign io_busy_cond = io_state != 0 || ope[2:0] == 3'b011;
 	assign is_busy = {6'b0,io_busy_cond};
 	
@@ -72,6 +72,18 @@ module unit2(
 	assign d_en = 1;
 	assign d_we = m1_is_write;
 
+/*
+   assign alu_addr =
+       ope != 0 && ope[1:0] == 2'b00 ? dd : 0;
+   assign alu_dd_val =
+     ope == 6'b110000 ? {imm,ds_val[15:0]} :
+     ope == 6'b001100 || ope == 6'b001000 ? add :
+     ope == 6'b010100 ? sub :
+     ope == 6'b011100 || ope == 6'b011000 ? sll :
+     ope == 6'b100100 || ope == 6'b100000 ? srl :
+     ope == 6'b101100 || ope == 6'b101000 ? sra : 0;
+*/
+/*
 	// alu
 	always @(posedge clk) begin
 		if (~rstn) begin
@@ -136,7 +148,7 @@ module unit2(
        endcase
 		end
 	end
-
+*/
 	//mem
 	always @(posedge clk) begin
 		if (~rstn) begin

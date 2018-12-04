@@ -142,28 +142,30 @@ module cpu3(
 	reg [5:0] u2_dd;
 	reg [15:0] u2_imm;
 	wire [6:0] u2_is_busy;
-	wire [5:0] alu2_reg_addr;
-	wire [31:0] alu2_dd_val;
 	wire [5:0] mem_reg_addr;
 	wire [31:0] mem_dd_val;
 	wire [5:0] io_reg_addr;
 	wire [31:0] io_dd_val;
 	unit2 u2(clk,rstn,u2_ope,u2_ds_val,u2_dt_val,u2_dd,u2_imm,
-	            u2_is_busy,alu2_reg_addr,alu2_dd_val,mem_reg_addr,mem_dd_val,io_reg_addr,io_dd_val,
+	            u2_is_busy,mem_reg_addr,mem_dd_val,io_reg_addr,io_dd_val,
 							d_addr,d_wdata,d_rdata,d_en,d_we,
 							io_in_data,io_in_rdy,io_in_vld,io_out_data,io_out_rdy,io_out_vld);
 
 		// unit3 
 	wire [2:0] u3_get;
+	reg [5:0] u3_ope;
 	reg [31:0] u3_ds_val;
 	reg [31:0] u3_dt_val;
 	reg [5:0] u3_dd;
 	reg [15:0] u3_imm;
 	reg [3:0] u3_ctrl;
 	wire [6:0] u3_is_busy;
+	wire [5:0] alu2_reg_addr;
+	wire [31:0] alu2_dd_val;
 	wire [5:0] fpu2_reg_addr;
 	wire [31:0] fpu2_dd_val;
-	unit3 u3(clk,rstn,u3_ds_val,u3_dt_val,u3_dd,u3_imm,u3_ctrl,u3_is_busy,fpu2_reg_addr,fpu2_dd_val);
+	unit3 u3(clk,rstn,u3_ope,u3_ds_val,u3_dt_val,u3_dd,u3_imm,u3_ctrl,u3_is_busy,
+						alu2_reg_addr,alu2_dd_val,fpu2_reg_addr,fpu2_dd_val);
 
 	//write back
 	reg [5:0] reg_addr [5:0];
@@ -249,12 +251,12 @@ module cpu3(
 	assign de_mod[0] = de_instr[0][28:26] == 3'b011 ? mod_u2 :
 										 de_instr[0][28:26] == 3'b111 ? mod_u2 :
 										 de_instr[0][27:26] == 2'b10 ? mod_u1 :
-										 de_instr[0][27:26] == 2'b00 ? mod_u1 | mod_u2 :
+										 de_instr[0][27:26] == 2'b00 ? mod_u1 | mod_u3 :
 										 de_instr[0][28:26] == 2'b01 ? mod_u1 | mod_u3 : 0;
 	assign de_mod[1] = de_instr[1][28:26] == 3'b011 ? mod_u2 :
 										 de_instr[1][28:26] == 3'b111 ? mod_u2 :
 										 de_instr[1][27:26] == 2'b10 ? mod_u1 :
-										 de_instr[1][27:26] == 2'b00 ? mod_u1 | mod_u2 :
+										 de_instr[1][27:26] == 2'b00 ? mod_u1 | mod_u3 :
 										 de_instr[1][28:26] == 2'b01 ? mod_u1 | mod_u3 : 0;
 	assign de_latency[0] = {6'b0,de_instr[0][28:26] == 3'b011 ? 1'b1 : 1'b0}; 
 	assign de_latency[1] = {6'b0,de_instr[1][28:26] == 3'b011 ? 1'b1 : 1'b0}; 
@@ -405,38 +407,34 @@ module cpu3(
 	assign dep_ok[2] =
 			((board | dd_board[0] | dd_board[1]) & wa_std_board[2] & mask) == 0 &&
 			((wa_std_board[0] | wa_std_board[1]) & dd_board[2] & mask) == 0;
-	//FPUはu3>u1, aluはu1>u2
+	//FPUはu3>u1, aluはu1>u3
 	assign u1_get =
 			b_is_hazard || u1_is_b ? 3'b000 :
-			dep_ok[0] && wa_mod[0][0] && (wa_latency[0] & u1_is_busy) == 0 &&	(wa_ope[0][1:0] != 2'b01) ? 3'b001 :
+			dep_ok[0] && wa_mod[0][0] && wa_ope[0][1:0] == 2'b10 ? 3'b001 :
 			(wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0) ? 3'b000 :
-			dep_ok[1] && wa_mod[1][0] && (wa_latency[1] & u1_is_busy) == 0 && ~u3_get[1]  &&
-				!(wa_ope[1][1:0] == 2'b10 && wa_ope[1][5:4] == 2'b0 && !(dep_ok[0] && (wa_latency[0] & u1_is_busy) == 0)) ? 3'b010 :
+			dep_ok[1] && wa_mod[1][0] && ~u3_get[1] &&
+				!(wa_ope[1][1:0] == 2'b10 && wa_ope[1][5:3] != 3'b0) ? 3'b010 :
 			(wa_ope[1][1:0] == 2'b10 && wa_ope[1][5:3] != 3'b0) ? 3'b000 :
-			dep_ok[2] && wa_mod[2][0] && (wa_latency[2] & u1_is_busy) == 0 &&
-					!(wa_ope[2][1:0] == 2'b10 && wa_ope[2][5:4] != 2'b0) && ~u3_get[2] ? 3'b100 :
+			dep_ok[2] && wa_mod[2][0] &&
+					!(wa_ope[2][1:0] == 2'b10 && wa_ope[2][5:3] != 3'b0) && ~u3_get[2] ? 3'b100 :
 			3'b000;
 
 	// wa_mod[0] == mod_u2 :: IO,MEMの整合性を取るためin-order
 	assign u2_get = 
 			b_is_hazard || u1_is_b ? 3'b000 : 
-			dep_ok[0] && wa_mod[0][1] && (wa_latency[0] & u2_is_busy) == 0 && 
-					(wa_ope[0][1:0] != 2'b00) ? 3'b001 :
+			dep_ok[0] && wa_mod[0][1] && (wa_latency[0] & u2_is_busy) == 0 ? 3'b001 :
 			(wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0) || wa_mod[0] == mod_u2 ? 3'b000 :
-			dep_ok[1] && wa_mod[1][1] && (wa_latency[1] & u2_is_busy) == 0 && 
-					!(wa_ope[1][1:0] == 2'b00 && u1_get[1]) ? 3'b010 :
+			dep_ok[1] && wa_mod[1][1] && (wa_latency[1] & u2_is_busy) == 0 ? 3'b010 :
 			(wa_ope[1][1:0] == 2'b10 && wa_ope[1][5:3] != 0) || wa_mod[1] == mod_u2 ? 3'b000 :
-			dep_ok[2] && wa_mod[2][1] && (wa_latency[2] & u2_is_busy) == 0 &&
-					!(wa_ope[2][1:0] == 2'b00 && u1_get[2]) ? 3'b100 :
-			3'b000;
+			dep_ok[2] && wa_mod[2][1] && (wa_latency[2] & u2_is_busy) == 0 ? 3'b100 :	3'b000;
 
 	assign u3_get = 
 			b_is_hazard || u1_is_b ? 3'b000 : 
-			dep_ok[0] && wa_mod[0][2] && (wa_latency[0] & u3_is_busy) == 0 ? 3'b001 :
+			dep_ok[0] && wa_mod[0][2] ? 3'b001 :
 			(wa_ope[0][1:0] == 2'b10 && wa_ope[0][5:3] != 0) ? 3'b000 :
-			dep_ok[1] && wa_mod[1][2] && (wa_latency[1] & u3_is_busy) == 0 ? 3'b010 :
+			dep_ok[1] && wa_mod[1][2] ? 3'b010 :
 			(wa_ope[1][1:0] == 2'b10 && wa_ope[1][5:3] != 0) ? 3'b000 :
-			dep_ok[2] && wa_mod[2][2] && (wa_latency[2] & u3_is_busy) == 0 ? 3'b100 : 3'b000;
+			dep_ok[2] && wa_mod[2][2] ? 3'b100 : 3'b000;
 
 	assign issued = u3_get | u2_get | u1_get;
 	assign dd_board[0] = 1 << wa_dd[0];
@@ -487,6 +485,7 @@ module cpu3(
 			u2_dt_val <= 0;
 			u2_dd <= 0;
 			u2_imm <= 0;
+			u3_ope <= 0;
 			u3_ds_val <= 0;
 			u3_dt_val <= 0;
 			u3_dd <= 0;
@@ -660,24 +659,28 @@ module cpu3(
 
 			//u3
 			if (u3_get[0]) begin
+				u3_ope <= wa_ope[0];
 				u3_ds_val <= wa_ds_val[0];
 				u3_dt_val <= wa_dt_val[0];
 				u3_dd <= wa_dd[0];
 				u3_imm <= wa_imm[0];
 				u3_ctrl <= wa_ctrl[0];
 			end else if (u3_get[1]) begin
+				u3_ope <= wa_ope[1];
 				u3_ds_val <= wa_ds_val[1];
 				u3_dt_val <= wa_dt_val[1];
 				u3_dd <= wa_dd[1];
 				u3_imm <= wa_imm[1];
 				u3_ctrl <= wa_ctrl[1];
 			end else if (u3_get[2]) begin
+				u3_ope <= wa_ope[2];
 				u3_ds_val <= wa_ds_val[2];
 				u3_dt_val <= wa_dt_val[2];
 				u3_dd <= wa_dd[2];
 				u3_imm <= wa_imm[2];
 				u3_ctrl <= wa_ctrl[2];
 			end else begin
+				u3_ope <= 0;
 				u3_ctrl <= 0;
 			end
 

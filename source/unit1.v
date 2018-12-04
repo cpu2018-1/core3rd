@@ -16,8 +16,8 @@ module unit1(
 		(* mark_debug = "true" *) output reg b_is_branch,
 		output reg [13:0] b_w_pc,
 
-		output reg [5:0] alu_addr,
-		output reg [31:0] alu_dd_val,
+		output wire [5:0] alu_addr, ////
+		output wire [31:0] alu_dd_val, ////
 		output reg [5:0] fpu_addr,  // 中にFPUモジュール埋め込む場合はwireに直す！
 		output reg [31:0] fpu_dd_val // 上に同じ
 	);
@@ -60,11 +60,22 @@ module unit1(
 
 	assign is_busy = 0; /////// FPUと調整
 
+	assign alu_addr = 
+			ope == 6'b000110 || ope == 6'b001110 ? 6'b011111 :
+			ope != 0 && ope[1:0] == 2'b00 ? dd : 0;
+	assign alu_dd_val = 
+		ope == 6'b110000 ? {imm,ds_val[15:0]} :
+		ope == 6'b001100 || ope == 6'b001000 ? add :
+		ope == 6'b010100 ? sub :
+		ope == 6'b011100 || ope == 6'b011000 ? sll :
+		ope == 6'b100100 || ope == 6'b100000 ? srl :
+		ope == 6'b101100 || ope == 6'b101000 ? sra :
+		ope == 6'b000110 || ope == 6'b001110 ? pc_1 : 0;
 
 	always @(posedge clk) begin
 		if (~rstn) begin
-			alu_addr <= 0;
-			alu_dd_val <= 0;
+//			alu_addr <= 0;
+//			alu_dd_val <= 0;
 			fpu_addr <= 0; // fpu組み込んだらそっちで初期化
 			fpu_dd_val <= 0; //上に同じ
 		end else begin
@@ -79,6 +90,7 @@ module unit1(
 		b_is_branch <= taken;
 		b_w_pc <= pc;
 
+/*
 			case (ope)
          6'b110000: // LUI
            begin
@@ -153,6 +165,7 @@ module unit1(
              alu_addr <= 0;
            end
        endcase
+*/
 		end
 	end
 
