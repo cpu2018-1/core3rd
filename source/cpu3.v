@@ -197,9 +197,9 @@ module cpu3(
 	assign if_is_b[1] = i_rdata[31:30] != 2'b00 && i_rdata[27:26] == 2'b10;
 	// beq,ble対策
 	assign if_imm[0] = 
-			i_rdata[63:58] == 6'b010010 || i_rdata[63:58] ==  6'b011010 ? {i_rdata[57:52],i_rdata[42:32]}  : i_rdata[47:32];
+			i_rdata[63:58] == 6'b010010 || i_rdata[63:58] ==  6'b011010 ? {i_rdata[57:53],i_rdata[42:32]}  : i_rdata[47:32];
 	assign if_imm[1] = 
-			i_rdata[31:26] == 6'b010010 || i_rdata[31:26] == 6'b011010 ? {i_rdata[25:20],i_rdata[10:0]} : i_rdata[15:0];
+			i_rdata[31:26] == 6'b010010 || i_rdata[31:26] == 6'b011010 ? {i_rdata[25:21],i_rdata[10:0]} : i_rdata[15:0];
 	assign if_instr[0] = i_rdata[63:32];
 	assign if_instr[1] = i_rdata[31:0];
 
