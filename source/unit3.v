@@ -23,14 +23,10 @@ module unit3(
 	wire [31:0] sll;
 	wire [31:0] srl;
 	wire [31:0] sra;
-	
-	//ダミー
-	reg [5:0] r_addr;
-	reg [31:0] r_dd_val;
-	
+
+	fpu u1(ctrl,ds_val,dt_val,dd,imm,fpu_addr,fpu_dd_val);
+		
 	assign is_busy = 0;
-	assign fpu_addr = r_addr;
-	assign fpu_dd_val = r_dd_val;
 
 
 	assign ex_imm = {{16{imm[15]}},imm};
@@ -51,22 +47,4 @@ module unit3(
 			ope == 6'b100100 || ope == 6'b100000 ? srl :
 			ope == 6'b101100 || ope == 6'b101000 ? sra : 0;
 
-
-	always @(posedge clk) begin
-		if (~rstn) begin
-			r_addr <= 0;
-			r_dd_val <= 0;
-		end else begin
-			r_addr <= 0;
-			if(ctrl == 4'b0011) begin
-				r_dd_val <= ds_val + dt_val;
-			end else if(ctrl == 4'b0010) begin
-				r_dd_val <= ds_val << dt_val[3:0];
-			end else if(ctrl == 4'b1010) begin
-				r_dd_val <= ds_val >> dt_val[4:0];
-			end else if(ctrl == 4'b1100) begin
-				r_dd_val <= ds_val >>> dt_val[4:0];
-			end
-		end
-	end
 endmodule

@@ -252,12 +252,12 @@ module cpu3(
 										 de_instr[0][28:26] == 3'b111 ? mod_u2 :
 										 de_instr[0][27:26] == 2'b10 ? mod_u1 :
 										 de_instr[0][27:26] == 2'b00 ? mod_u1 | mod_u3 :
-										 de_instr[0][28:26] == 2'b01 ? mod_u1 | mod_u3 : 0;
+										 de_instr[0][27:26] == 2'b01 ? mod_u1 | mod_u3 : 0;
 	assign de_mod[1] = de_instr[1][28:26] == 3'b011 ? mod_u2 :
 										 de_instr[1][28:26] == 3'b111 ? mod_u2 :
 										 de_instr[1][27:26] == 2'b10 ? mod_u1 :
 										 de_instr[1][27:26] == 2'b00 ? mod_u1 | mod_u3 :
-										 de_instr[1][28:26] == 2'b01 ? mod_u1 | mod_u3 : 0;
+										 de_instr[1][27:26] == 2'b01 ? mod_u1 | mod_u3 : 0;
 	assign de_latency[0] = {6'b0,de_instr[0][28:26] == 3'b011 ? 1'b1 : 1'b0}; 
 	assign de_latency[1] = {6'b0,de_instr[1][28:26] == 3'b011 ? 1'b1 : 1'b0}; 
 	assign de_data[0] = {{de_pc[13:1],1'b0},de_ope[0],de_ds[0],de_dt[0],de_dd[0],de_imm[0],de_opr[0],de_ctrl[0],de_mod[0],de_latency[0]};

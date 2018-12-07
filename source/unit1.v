@@ -18,8 +18,8 @@ module unit1(
 
 		output wire [5:0] alu_addr, ////
 		output wire [31:0] alu_dd_val, ////
-		output reg [5:0] fpu_addr,  // 中にFPUモジュール埋め込む場合はwireに直す！
-		output reg [31:0] fpu_dd_val // 上に同じ
+		output wire [5:0] fpu_addr,  // 中にFPUモジュール埋め込む場合はwireに直す！
+		output wire [31:0] fpu_dd_val // 上に同じ
 	);
 	// B or ALU or FPU
 	wire rs_eq_opr;
@@ -36,6 +36,8 @@ module unit1(
 	wire [31:0] srl;
 	wire [31:0] sra;
 	wire [31:0] pc_1;
+
+	fpu u1(ctrl,ds_val,dt_val,dd,imm,fpu_addr,fpu_dd_val);
 
 	assign rs_eq_opr = $signed(ds_val) == $signed(opr);
 	assign rs_lt_opr = $signed(ds_val) < $signed(opr);
@@ -76,8 +78,6 @@ module unit1(
 		if (~rstn) begin
 //			alu_addr <= 0;
 //			alu_dd_val <= 0;
-			fpu_addr <= 0; // fpu組み込んだらそっちで初期化
-			fpu_dd_val <= 0; //上に同じ
 		end else begin
 
 		b_is_hazard <= 
