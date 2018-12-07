@@ -343,6 +343,8 @@ module cpu3(
 	// forwarding あったほうがいいか
 	assign reg_ds_data[0] = 
 			wa_ds[0][4:0] == 0 ? 0 : 
+			wa_ds[0][5:0] == alu_reg_addr ? alu_dd_val :
+			wa_ds[0][5:0] == alu2_reg_addr ? alu2_dd_val :
 			wa_ds[0][5:0] == reg_addr[0] ? reg_wdata[0] :
 			wa_ds[0][5:0] == reg_addr[1] ? reg_wdata[1] :
 			wa_ds[0][5:0] == reg_addr[2] ? reg_wdata[2] :
@@ -352,6 +354,8 @@ module cpu3(
 			regfile[wa_ds[0]];
 	assign reg_dt_data[0] = 
 			wa_dt[0][4:0] == 0 ? 0 : 
+			wa_dt[0][5:0] == alu_reg_addr ? alu_dd_val :
+			wa_dt[0][5:0] == alu2_reg_addr ? alu2_dd_val :
 			wa_dt[0][5:0] == reg_addr[0] ? reg_wdata[0] :
 			wa_dt[0][5:0] == reg_addr[1] ? reg_wdata[1] :
 			wa_dt[0][5:0] == reg_addr[2] ? reg_wdata[2] :
@@ -362,6 +366,8 @@ module cpu3(
 
 	assign reg_ds_data[1] = 
 			wa_ds[1][4:0] == 0 ? 0 : 
+			wa_ds[1][5:0] == alu_reg_addr ? alu_dd_val :
+			wa_ds[1][5:0] == alu2_reg_addr ? alu2_dd_val :
 			wa_ds[1][5:0] == reg_addr[0] ? reg_wdata[0] :
 			wa_ds[1][5:0] == reg_addr[1] ? reg_wdata[1] :
 			wa_ds[1][5:0] == reg_addr[2] ? reg_wdata[2] :
@@ -371,6 +377,8 @@ module cpu3(
 			regfile[wa_ds[1]];
 	assign reg_dt_data[1] = 
 			wa_dt[1][4:0] == 0 ? 0 : 
+			wa_dt[1][5:0] == alu_reg_addr ? alu_dd_val :
+			wa_dt[1][5:0] == alu2_reg_addr ? alu2_dd_val :
 			wa_dt[1][5:0] == reg_addr[0] ? reg_wdata[0] :
 			wa_dt[1][5:0] == reg_addr[1] ? reg_wdata[1] :
 			wa_dt[1][5:0] == reg_addr[2] ? reg_wdata[2] :
@@ -382,6 +390,8 @@ module cpu3(
 
 	assign reg_ds_data[2] = 
 			wa_ds[2][4:0] == 0 ? 0 : 
+			wa_ds[2][5:0] == alu_reg_addr ? alu_dd_val :
+			wa_ds[2][5:0] == alu2_reg_addr ? alu2_dd_val :
 			wa_ds[2][5:0] == reg_addr[0] ? reg_wdata[0] :
 			wa_ds[2][5:0] == reg_addr[1] ? reg_wdata[1] :
 			wa_ds[2][5:0] == reg_addr[2] ? reg_wdata[2] :
@@ -391,6 +401,8 @@ module cpu3(
 			regfile[wa_ds[2]];
 	assign reg_dt_data[2] = 
 			wa_dt[2][4:0] == 0 ? 0 : 
+			wa_dt[2][5:0] == alu_reg_addr ? alu_dd_val :
+			wa_dt[2][5:0] == alu2_reg_addr ? alu2_dd_val :
 			wa_dt[2][5:0] == reg_addr[0] ? reg_wdata[0] :
 			wa_dt[2][5:0] == reg_addr[1] ? reg_wdata[1] :
 			wa_dt[2][5:0] == reg_addr[2] ? reg_wdata[2] :
@@ -718,10 +730,12 @@ module cpu3(
 			regfile[fpu_reg_addr] <= fpu_dd_val;
 			regfile[fpu2_reg_addr] <= fpu2_dd_val;
 */
-			board <= (board & ~(1 << alu_reg_addr) & ~(1 << alu2_reg_addr) & ~(1 << io_reg_addr) & 
+			//aluをさらにforwarding コメントアウトとwa_ope[1:0] != 0を変更
+			board <= (board &  ~(1 << alu_reg_addr) & ~(1 << alu2_reg_addr) & ~(1 << io_reg_addr) &
 									~(1 << mem_reg_addr) & ~(1 << fpu_reg_addr) & ~(1 << fpu2_reg_addr)) |
-								(issued[0] ? dd_board[0] : 0) | (issued[1] ? dd_board[1] : 0) | 
-								(issued[2] ? dd_board[2] : 0);
+								(issued[0] && wa_ope[0][1:0] != 0 ? dd_board[0] : 0) |
+								(issued[1] && wa_ope[1][1:0] != 0 ? dd_board[1] : 0) | 
+								(issued[2] && wa_ope[2][1:0] != 0 ? dd_board[2] : 0);
 
 		end
 	end
