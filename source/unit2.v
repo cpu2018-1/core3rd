@@ -7,10 +7,8 @@ module unit2(
 		input wire [5:0] dd,
 		input wire [15:0] imm,
 		output wire [6:0] is_busy,
-//		output wire [5:0] alu_addr, ////
-//		output wire [31:0] alu_dd_val, ////
-		output reg [5:0] mem_addr,
-		output reg [31:0] mem_dd_val,
+		output wire [5:0] mem_addr,
+		output wire [31:0] mem_dd_val,
 		output reg [5:0] io_addr,
 		output reg [31:0] io_dd_val,
 
@@ -29,143 +27,52 @@ module unit2(
 		output reg io_out_vld
 	);
 	//MEM or IO 
-/*
-	wire [31:0] ex_imm;
-	wire [31:0] alu_rs;
-	wire [31:0] alu_rt_imm;
-	wire [31:0] add;
-	wire [31:0] sub;
-	wire [31:0] sll;
-	wire [31:0] srl;
-	wire [31:0] sra;
-*/
+
 	reg [16:0] m1_addr;
 	reg [31:0] m1_wdata;
 	reg [5:0] m1_dd;
 	reg m1_is_write;
 	reg [5:0] m2_dd;
 	reg m2_is_write;
-	reg [5:0] m3_dd;
-	reg m3_is_write;
-	reg [31:0] m3_rdata;
+	reg [31:0] m2_rdata;
+//	reg [5:0] m3_dd;
+//	reg m3_is_write;
+//	reg [31:0] m3_rdata;
 
 	reg [1:0] io_state;
 	reg io_is_in;
 	reg [5:0] io_tmp_addr;
 	reg [7:0] io_tmp_data;
 	wire io_busy_cond;
-/*
-	assign ex_imm = {{16{imm[15]}},imm};
-	assign alu_rs = ds_val;
-	assign alu_rt_imm = ope[2] ? dt_val : ex_imm;
-	assign add = $signed(alu_rs) + $signed(alu_rt_imm);
-	assign sub = $signed(alu_rs) - $signed(alu_rt_imm);
-	assign sll = alu_rs << alu_rt_imm[4:0];
-	assign srl = alu_rs >> alu_rt_imm[4:0];
-	assign sra = alu_rs >>> alu_rt_imm[4:0];
-*/
+
 	assign io_busy_cond = io_state != 0 || ope[2:0] == 3'b011;
 	assign is_busy = {6'b0,io_busy_cond};
 	
-	assign d_addr = m1_addr;
-	assign d_wdata = m1_wdata;
+	assign d_addr = $signed(ds_val[16:0]) + $signed(imm);
+	assign d_wdata = dt_val;
 	assign d_en = 1;
-	assign d_we = m1_is_write;
+	assign d_we = ope[2:0] == 3'b111 ? ~ope[3] : 0;
 
-/*
-   assign alu_addr =
-       ope != 0 && ope[1:0] == 2'b00 ? dd : 0;
-   assign alu_dd_val =
-     ope == 6'b110000 ? {imm,ds_val[15:0]} :
-     ope == 6'b001100 || ope == 6'b001000 ? add :
-     ope == 6'b010100 ? sub :
-     ope == 6'b011100 || ope == 6'b011000 ? sll :
-     ope == 6'b100100 || ope == 6'b100000 ? srl :
-     ope == 6'b101100 || ope == 6'b101000 ? sra : 0;
-*/
-/*
-	// alu
-	always @(posedge clk) begin
-		if (~rstn) begin
-			alu_addr <= 0;
-			alu_dd_val <= 0;
-		end else begin
-			case (ope)
-         6'b110000: // LUI
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= {imm,ds_val[15:0]};
-           end
-         6'b001100: //ADD
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= add;
-           end
-         6'b001000: //ADDI
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= add;
-           end
-         6'b010100: //SUB
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= sub;
-           end
-				 6'b011100: // SLL
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= sll;
-           end
-         6'b011000: //SLLI
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= sll;
-           end
-         6'b100100: //SRL
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= srl;
-           end
-         6'b100000: //SRLI
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= srl;
-           end
-         6'b101100: //SRA
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= sra;
-           end
-         6'b101000: //SRAI
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= sra;
-           end
-         default:
-           begin
-             alu_addr <= 0;
-           end
-       endcase
-		end
-	end
-*/
+	assign mem_addr = m2_is_write ? 0 : m2_dd;
+	assign mem_dd_val = m2_rdata;
 	//mem
 	always @(posedge clk) begin
 		if (~rstn) begin
-			mem_addr <= 0;
-			mem_dd_val <= 0;
-			m1_addr <= 0;
-			m1_wdata <= 0;
+//			mem_addr <= 0;
+//			mem_dd_val <= 0;
+//			m1_addr <= 0;
+//			m1_wdata <= 0;
 			m1_dd <= 0;
 			m1_is_write <= 0;
 			m2_dd <= 0;
 			m2_is_write <= 0;
-			m3_dd <= 0;
-			m3_is_write <= 0;
+			m2_rdata <= 0;
+//			m3_dd <= 0;
+//			m3_is_write <= 0;
 		end else begin			
 			if(ope[2:0] == 3'b111) begin
-				m1_addr <= $signed(ds_val) + $signed(imm);
-				m1_wdata <= dt_val;
+//				m1_addr <= $signed(ds_val) + $signed(imm);
+//				m1_wdata <= dt_val;
 				m1_dd <= dd;
 				m1_is_write <= ~ope[3];
 			end else begin
@@ -175,13 +82,12 @@ module unit2(
 
 			m2_dd <= m1_dd;
 			m2_is_write <= m1_is_write;
+			m2_rdata <= d_rdata;
 
-			m3_dd <= m2_dd;
-			m3_is_write <= m2_is_write;
-			m3_rdata <= d_rdata;
+//			m3_dd <= m2_dd;
+//			m3_is_write <= m2_is_write;
+//			m3_rdata <= d_rdata;
 
-			mem_addr <= m3_is_write ? 0 : m3_dd;
-			mem_dd_val <= m3_rdata;
 		end	
 	end
 
