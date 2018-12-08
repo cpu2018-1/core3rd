@@ -10,11 +10,11 @@ module unit1(
 		(* mark_debug = "true" *) input wire [4:0] opr,
 		(* mark_debug = "true" *) input wire [3:0] ctrl,
 		output wire [6:0] is_busy,
-		(* mark_debug = "true" *) output reg b_is_hazard,
-		(* mark_debug = "true" *) output reg [13:0] b_addr,
-		(* mark_debug = "true" *) output reg b_is_b_ope,
-		(* mark_debug = "true" *) output reg b_is_branch,
-		output reg [13:0] b_w_pc,
+		(* mark_debug = "true" *) output wire b_is_hazard,
+		(* mark_debug = "true" *) output wire [13:0] b_addr,
+		(* mark_debug = "true" *) output wire b_is_b_ope,
+		(* mark_debug = "true" *) output wire b_is_branch,
+		output wire [13:0] b_w_pc,
 
 		output wire [5:0] alu_addr, ////
 		output wire [31:0] alu_dd_val, ////
@@ -74,12 +74,23 @@ module unit1(
 		ope == 6'b101100 || ope == 6'b101000 ? sra :
 		ope == 6'b000110 || ope == 6'b001110 ? pc_1 : 0;
 
+    assign b_is_hazard =
+    		ope == 6'b001110 || // JALR
+				(ope == 6'b001010 && ds_val[13:0] != pc[13:0]) || // JR
+   			(ope[1:0] == 2'b10 && ope[5:4] != 2'b0 && (taken ^ was_branch));
+    assign b_addr =
+    		(ope[1:0] == 2'b10 && ope[5:4] == 2'b00) ? ds_val[13:0] :
+    		taken ? imm[13:0] : pc_1;
+    assign b_is_b_ope = ope[1:0] == 2'b10 && ope[5:4] != 2'b0;
+    assign b_is_branch = taken;
+    assign b_w_pc = pc;
+
 	always @(posedge clk) begin
 		if (~rstn) begin
 //			alu_addr <= 0;
 //			alu_dd_val <= 0;
 		end else begin
-
+/*
 		b_is_hazard <= 
 				ope == 6'b001010 || ope == 6'b001110 || 
 				(ope[1:0] == 2'b10 && ope[5:4] != 2'b0 && (taken ^ was_branch));
@@ -89,82 +100,6 @@ module unit1(
 		b_is_b_ope <= ope[1:0] == 2'b10 && ope[5:4] != 2'b0;
 		b_is_branch <= taken;
 		b_w_pc <= pc;
-
-/*
-			case (ope)
-         6'b110000: // LUI
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= {imm,ds_val[15:0]};
-           end
-         6'b001100: //ADD
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= add;
-           end
-         6'b001000: //ADDI
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= add;
-           end
-         6'b010100: //SUB
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= sub;
-           end
-				 6'b011100: // SLL
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= sll;
-           end
-         6'b011000: //SLLI
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= sll;
-           end
-         6'b100100: //SRL
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= srl;
-           end
-         6'b100000: //SRLI
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= srl;
-           end
-         6'b101100: //SRA
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= sra;
-           end
-         6'b101000: //SRAI
-           begin
-             alu_addr <= dd;
-             alu_dd_val <= sra;
-           end
-				 6'b000010: //J
-           begin
-             alu_addr <= 0;
-           end
-         6'b000110: //JAL
-           begin
-             alu_addr <= 6'b011111;
-             alu_dd_val <= pc_1;
-           end
-         6'b001010: //JR
-           begin
-             alu_addr <= 0;
-           end
-         6'b001110: //JALR
-           begin
-             alu_addr <= 6'b011111;
-             alu_dd_val <= pc_1;
-           end
-         default:
-           begin
-             alu_addr <= 0;
-           end
-       endcase
 */
 		end
 	end

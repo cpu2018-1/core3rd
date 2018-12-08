@@ -55,20 +55,24 @@ module cpu3(
 	wire bp_is_b_ope;
 	wire bp_is_branch;
 	wire [13:0] bp_w_pc;
+	wire [13:0] r31_addr;
 	bp ubp(clk,bp_r_pc,bp_is_taken0,bp_is_taken1,bp_is_b_ope,bp_is_branch,bp_w_pc);
+
+	assign r31_addr = regfile[31][13:0];
 	
 	//instruction fetch
 	reg [13:0] if_pc;
 	(* mark_debug = "true" *) wire if_is_en [1:0];
 	wire if_is_j [1:0];
 	(* mark_debug = "true" *) wire if_is_b [1:0];
+	wire if_is_jr [1:0];
 	(* mark_debug = "true" *) wire [15:0] if_imm [1:0];
 	reg if_pre_is_j;
 	wire [31:0] if_instr [1:0];
 	//decode
-	reg [13:0] de_pc;
+	reg [13:0] de_pc [1:0];
 	reg [31:0] de_tmp_instr [1:0];
-	reg [13:0] de_tmp_pc;
+	reg [13:0] de_tmp_pc [1:0];
 	reg de_tmp_taken [1:0];
 	reg de_tmp_is_en [1:0];
 	reg de_tmp_used;
@@ -77,6 +81,7 @@ module cpu3(
 	(* mark_debug = "true" *) reg de_taken [1:0];
 	wire de_is_j [1:0];
 	wire de_is_b [1:0];
+	wire de_is_jr [1:0];
 	wire [5:0] de_ope [1:0];
 	wire [5:0] de_ds [1:0];
 	wire [5:0] de_dt [1:0];
@@ -132,7 +137,7 @@ module cpu3(
 							alu_reg_addr,alu_dd_val,fpu_reg_addr,fpu_dd_val);
 	// b_hogeがregのとき
 	wire u1_is_b;
-	assign u1_is_b = u1_ope[1:0] == 2'b10 && u1_ope[5:3] != 3'b0;
+	assign u1_is_b = 0; // u1_ope[1:0] == 2'b10 && u1_ope[5:3] != 3'b0;
 		
 		// unit2
 	wire [2:0] u2_get;
@@ -195,6 +200,8 @@ module cpu3(
 	assign if_is_j[1] = i_rdata[31:29] == 2'b000 && i_rdata[27:26] == 2'b10;
 	assign if_is_b[0] = i_rdata[63:62] != 2'b00 && i_rdata[59:58] == 2'b10;
 	assign if_is_b[1] = i_rdata[31:30] != 2'b00 && i_rdata[27:26] == 2'b10;
+	assign if_is_jr[0] = i_rdata[63:58] == 6'b001010;
+	assign if_is_jr[1] = i_rdata[31:26] == 6'b001010;
 	// beq,ble対策
 	assign if_imm[0] = 
 			i_rdata[63:58] == 6'b010010 || i_rdata[63:58] ==  6'b011010 ? {i_rdata[57:53],i_rdata[42:32]}  : i_rdata[47:32];
@@ -208,6 +215,8 @@ module cpu3(
 	assign de_is_j[1] = de_is_en[1] && de_instr[1][31:29] == 3'b000 && de_instr[1][27:26] == 2'b10;
 	assign de_is_b[0] = de_is_en[0] && de_instr[0][31:30] > 2'b00 && de_instr[0][27:26] == 2'b10;
 	assign de_is_b[1] = de_is_en[1] && de_instr[1][31:30] > 2'b00 && de_instr[1][27:26] == 2'b10;
+	assign de_is_jr[0] = de_is_en[0] && de_instr[0][31:26] == 6'b001010;
+	assign de_is_jr[1] = de_is_en[1] && de_instr[1][31:26] == 6'b001010;
 	assign de_ope[0] = de_instr[0][31:26];
 	assign de_ope[1] = de_instr[1][31:26];
 	assign de_ds[0] = de_instr[0][28:26] == 3'b001 && ~de_instr[0][1] ? 
@@ -260,9 +269,9 @@ module cpu3(
 										 de_instr[1][27:26] == 2'b01 ? mod_u1 | mod_u3 : 0;
 	assign de_latency[0] = {6'b0,de_instr[0][28:26] == 3'b011 ? 1'b1 : 1'b0}; 
 	assign de_latency[1] = {6'b0,de_instr[1][28:26] == 3'b011 ? 1'b1 : 1'b0}; 
-	assign de_data[0] = {{de_pc[13:1],1'b0},de_ope[0],de_ds[0],de_dt[0],de_dd[0],de_imm[0],de_opr[0],de_ctrl[0],de_mod[0],de_latency[0]};
+	assign de_data[0] = {de_pc[0],de_ope[0],de_ds[0],de_dt[0],de_dd[0],de_imm[0],de_opr[0],de_ctrl[0],de_mod[0],de_latency[0]};
 	assign de_data[1] =
-			de_is_j[0] ? 0 : {{de_pc[13:1],1'b1},de_ope[1],de_ds[1],de_dt[1],de_dd[1],de_imm[1],de_opr[1],de_ctrl[1],de_mod[1],de_latency[1]};
+			de_is_j[0] ? 0 : {de_pc[1],de_ope[1],de_ds[1],de_dt[1],de_dd[1],de_imm[1],de_opr[1],de_ctrl[1],de_mod[1],de_latency[1]};
 	
 		
 	//wa
@@ -461,13 +470,13 @@ module cpu3(
 			state <= st_begin;
 			if_pc <= 0;
 			if_pre_is_j <= 0;
-			de_pc <= 0;
 			de_tmp_used <= 0;
-			de_tmp_pc <= 0;
 			for(i1=0;i1 < 2; i1=i1+1) begin
+				de_pc[i1] <= 0;
 				de_instr[i1] <= 0;
 				de_is_en[i1] <= 0;
 				de_taken[i1] <= 0;
+				de_tmp_pc[i1] <= 0;
 				de_tmp_instr[i1] <= 0;
 				de_tmp_is_en[i1] <= 0;
 				de_tmp_taken[i1] <= 0;
@@ -509,7 +518,9 @@ module cpu3(
 		end else if(state == st_normal) begin
 			pc <= b_is_hazard ? b_addr :
 						if_is_en[0] & (if_is_j[0] | (if_is_b[0] & bp_is_taken0)) ? if_imm[0][13:0] :
+						if_is_en[0] & if_is_jr[0] ? r31_addr :
 						if_is_en[1] & (if_is_j[1] | (if_is_b[1] & bp_is_taken1)) ? if_imm[1][13:0] :
+						if_is_en[1] & if_is_jr[1] ? r31_addr :
 						wa_is_busy ? pc :
 						{pc[13:1]+1'b1,1'b0};
 
@@ -518,9 +529,13 @@ module cpu3(
 
 			// instruction fetch
 			if_pc <= pc;
-			if_pre_is_j <= (if_is_j[0] & if_is_en[0]) | (if_is_j[1] & if_is_en[1]) | (if_is_en[0] & if_is_b[0] & bp_is_taken0) | (if_is_en[1] & if_is_b[1] & bp_is_taken1);
+			if_pre_is_j <= 
+					(if_is_j[0] & if_is_en[0]) | (if_is_j[1] & if_is_en[1]) |
+					(if_is_en[0] & if_is_b[0] & bp_is_taken0) | (if_is_en[1] & if_is_b[1] & bp_is_taken1) |
+					(if_is_en[0] & if_is_jr[0]) | (if_is_en[1] & if_is_jr[1]);
 			//decode
-			de_tmp_pc <= wa_is_busy && ~wa_was_busy ? if_pc : de_tmp_pc;
+			de_tmp_pc[0] <= wa_is_busy && ~wa_was_busy ? (i_rdata[63:58] == 6'b001010 ? r31_addr : {if_pc[13:1],1'b0}) : de_tmp_pc[0];
+			de_tmp_pc[1] <= wa_is_busy && ~wa_was_busy ? (i_rdata[31:26] == 6'b001010 ? r31_addr : {if_pc[13:1],1'b1}) : de_tmp_pc[1];
 			de_tmp_instr[0] <= wa_is_busy && ~wa_was_busy ? i_rdata[63:32] : de_tmp_instr[0];
 			de_tmp_instr[1] <= wa_is_busy && ~wa_was_busy ? i_rdata[31:0] : de_tmp_instr[1];
 			de_tmp_is_en[0] <= 
@@ -528,13 +543,18 @@ module cpu3(
 					wa_is_busy && ~wa_was_busy ? if_is_en[0] : de_tmp_is_en[0];
 			de_tmp_is_en[1] <= 
 					b_is_hazard  ? 0 :
-					wa_is_busy && ~wa_was_busy ? if_is_en[1] && !(if_is_en[0] && (if_is_j[0] || (if_is_b[0] & bp_is_taken0))) : de_tmp_is_en[1];
+					wa_is_busy && ~wa_was_busy ? if_is_en[1] && 
+							!(if_is_en[0] && (if_is_j[0] || if_is_jr[0] || (if_is_b[0] & bp_is_taken0))) : de_tmp_is_en[1];
 			de_tmp_taken[0] <= wa_is_busy && ~wa_was_busy ? (if_is_b[0] & bp_is_taken0) : de_tmp_taken[0];
 			de_tmp_taken[1] <= wa_is_busy && ~wa_was_busy ? (if_is_b[1] & bp_is_taken1) : de_tmp_taken[1];
 			de_tmp_used <= wa_is_busy;
 
-			de_pc <= wa_is_busy ? de_pc :
-							 de_tmp_used ? de_tmp_pc : if_pc;
+			de_pc[0] <= wa_is_busy ? de_pc[0] :
+							 de_tmp_used ? de_tmp_pc[0] :
+							 i_rdata[63:58] == 6'b001010 ? r31_addr : {if_pc[13:1],1'b0};
+			de_pc[1] <= wa_is_busy ? de_pc[1] :
+							 de_tmp_used ? de_tmp_pc[1] :
+							 i_rdata[31:26] == 6'b001010 ? r31_addr : {if_pc[13:1],1'b1};
 			de_instr[0] <= 
 					wa_is_busy ? de_instr[0] :
 					de_tmp_used ? de_tmp_instr[0] : i_rdata[63:32];
@@ -550,7 +570,7 @@ module cpu3(
 					b_is_hazard ? 0 :
 					wa_is_busy ? de_is_en[1] :
 					de_tmp_used ? de_tmp_is_en[1] :	(if_is_en[1] & 
-							~(if_is_en[0] & (if_is_j[0] | (if_is_b[0] & bp_is_taken0))));
+							~(if_is_en[0] & (if_is_j[0] | if_is_jr[0] | (if_is_b[0] & bp_is_taken0))));
 			de_taken[0] <= 
 					wa_is_busy ? de_taken[0] : 
 					de_tmp_used ? de_tmp_taken[0] : (if_is_b[0] & bp_is_taken0);
