@@ -32,9 +32,9 @@ module unit2(
 	reg [31:0] m1_wdata;
 	reg [5:0] m1_dd;
 	reg m1_is_write;
-	reg [5:0] m2_dd;
-	reg m2_is_write;
-	reg [31:0] m2_rdata;
+	wire[5:0] m2_dd;
+	wire m2_is_write;
+	wire [31:0] m2_rdata;
 //	reg [5:0] m3_dd;
 //	reg m3_is_write;
 //	reg [31:0] m3_rdata;
@@ -55,6 +55,11 @@ module unit2(
 
 	assign mem_addr = m2_is_write ? 0 : m2_dd;
 	assign mem_dd_val = m2_rdata;
+
+	assign		m2_dd = m1_dd;
+	assign		m2_is_write = m1_is_write;
+	assign		m2_rdata = d_rdata;
+
 	//mem
 	always @(posedge clk) begin
 		if (~rstn) begin
@@ -64,9 +69,9 @@ module unit2(
 //			m1_wdata <= 0;
 			m1_dd <= 0;
 			m1_is_write <= 0;
-			m2_dd <= 0;
-			m2_is_write <= 0;
-			m2_rdata <= 0;
+//			m2_dd <= 0;
+//			m2_is_write <= 0;
+//			m2_rdata <= 0;
 //			m3_dd <= 0;
 //			m3_is_write <= 0;
 		end else begin			
@@ -79,11 +84,11 @@ module unit2(
 				m1_dd <= 0;
 				m1_is_write <= 0;
 			end
-
+/*
 			m2_dd <= m1_dd;
 			m2_is_write <= m1_is_write;
 			m2_rdata <= d_rdata;
-
+*/
 //			m3_dd <= m2_dd;
 //			m3_is_write <= m2_is_write;
 //			m3_rdata <= d_rdata;
